@@ -3,19 +3,22 @@ import { OpenRouterProvider } from "../src/openrouter.js";
 import type { ChatRequest } from "../src/types.js";
 
 // Mock the OpenRouter SDK
+const mockSend = vi.fn();
+
 vi.mock("@openrouter/sdk", () => {
   return {
-    OpenRouter: vi.fn().mockImplementation(() => ({
-      chat: {
-        send: vi.fn(),
-      },
-    })),
+    OpenRouter: class {
+      chat = {
+        send: mockSend,
+      };
+    },
   };
 });
 
+export { mockSend };
+
 describe("OpenRouterProvider", () => {
   let provider: OpenRouterProvider;
-  let mockSend: any;
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -25,9 +28,6 @@ describe("OpenRouterProvider", () => {
     provider = new OpenRouterProvider({
       apiKey: "test-api-key",
     });
-
-    // Get reference to the mocked send function
-    mockSend = (provider as any).client.chat.send;
   });
 
   describe("chat", () => {

@@ -18,6 +18,6 @@ export function defineSyncTool(
   schema: ToolSchema,
   handler: (args: any, ctx: AgentContext) => any,
 ): ToolDefinition {
-  const asyncHandler: ToolHandler = async (args, ctx) => handler(args, ctx);
+  const asyncHandler: ToolHandler = (args, ctx) => Promise.resolve(handler(args, ctx));
   return { schema, handler: asyncHandler };
 }

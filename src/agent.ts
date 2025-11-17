@@ -81,7 +81,7 @@ async function runToolCalls(
     let args: any;
     try {
       args = JSON.parse(argsJson);
-    } catch (err) {
+    } catch {
       ctx.logger?.({
         type: "tool_result",
         data: { name, error: "Invalid JSON arguments", raw: argsJson },
@@ -130,7 +130,7 @@ export function createAgent<I = unknown, O = unknown>(
       logger: metadata?.logger ?? undefined,
     };
 
-    let messages = buildInitialMessages(config, input);
+    const messages = buildInitialMessages(config, input);
     const tools = config.tools ?? [];
     const chatTools = toChatTools(tools);
 
@@ -220,7 +220,7 @@ export function createAgent<I = unknown, O = unknown>(
 
       ctx.logger?.({ type: "final", data: { content: rawContent } });
 
-      return parsed as O;
+      return parsed;
     }
 
     throw new Error("Agent exceeded maxToolIterations without finishing");
