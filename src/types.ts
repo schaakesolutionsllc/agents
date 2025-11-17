@@ -4,8 +4,10 @@ export type Role = "system" | "user" | "assistant" | "tool";
 
 export interface Message {
   role: Role;
-  content: string;
+  content: string | null;
   name?: string; // for tool messages
+  toolCallId?: string; // for tool response messages - required by OpenRouter SDK
+  tool_calls?: ChatToolCall[]; // for assistant messages with tool calls
 }
 
 export interface ToolSchema {

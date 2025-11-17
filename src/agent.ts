@@ -55,6 +55,7 @@ async function runToolCalls(
   const toolMessages: Message[] = [];
 
   for (const toolCall of toolCalls) {
+    const toolCallId = toolCall.id;
     const name = toolCall.function?.name;
     const argsJson = toolCall.function?.arguments ?? "{}";
 
@@ -71,6 +72,7 @@ async function runToolCalls(
       toolMessages.push({
         role: "tool",
         name,
+        toolCallId,
         content: JSON.stringify({ error: "Tool not found" }),
       });
       continue;
@@ -88,6 +90,7 @@ async function runToolCalls(
       toolMessages.push({
         role: "tool",
         name,
+        toolCallId,
         content: JSON.stringify({ error: "Invalid arguments JSON" }),
       });
       continue;
@@ -102,6 +105,7 @@ async function runToolCalls(
     toolMessages.push({
       role: "tool",
       name,
+      toolCallId,
       content: JSON.stringify(result ?? {}),
     });
   }
@@ -147,13 +151,25 @@ export function createAgent<I = unknown, O = unknown>(
       });
 
       const assistantMsg = res.message;
-      messages.push({
-        role: "assistant",
-        content: assistantMsg.content ?? "",
-      });
-
       const toolCalls = assistantMsg.tool_calls;
       const finishReason = res.finishReason;
+
+      // Add assistant message to history (with tool calls if present)
+      messages.push({
+        role: "assistant",
+        content: assistantMsg.content ?? null,
+        tool_calls: toolCalls,
+      });
+
+      ctx.logger?.({
+        type: "model_call",
+        data: {
+          iteration: i,
+          finishReason,
+          hasToolCalls: !!toolCalls?.length,
+          toolCallsCount: toolCalls?.length || 0,
+        },
+      });
 
       if (toolCalls && toolCalls.length > 0 && finishReason === "tool_calls") {
         // Execute tools and append tool messages
@@ -171,8 +187,32 @@ export function createAgent<I = unknown, O = unknown>(
             (() => {
               try {
                 return JSON.parse(rawContent);
-              } catch {
-                return rawContent;
+              } catch (parseError) {
+                // Try to extract JSON from markdown code blocks
+                const jsonMatch = rawContent.match(
+                  /```(?:json)?\s*\n?([\s\S]*?)\n?```/,
+                );
+                if (jsonMatch?.[1]) {
+                  try {
+                    return JSON.parse(jsonMatch[1]);
+                  } catch {
+                    // Fall through to error
+                  }
+                }
+
+                // If we have an output schema but can't parse JSON, throw a helpful error
+                ctx.logger?.({
+                  type: "final",
+                  data: {
+                    content: rawContent,
+                    error: "Failed to parse JSON",
+                    parseError: parseError instanceof Error ? parseError.message : String(parseError),
+                  },
+                });
+
+                throw new Error(
+                  `Failed to parse structured output as JSON. Raw content: ${rawContent.substring(0, 200)}${rawContent.length > 200 ? "..." : ""}`,
+                );
               }
             })(),
           )
