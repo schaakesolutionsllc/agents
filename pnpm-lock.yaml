@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@openrouter/sdk':
+        specifier: ^0.1.11
+        version: 0.1.11
       zod:
         specifier: ^3.22.0
         version: 3.25.76
@@ -264,6 +267,20 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openrouter/sdk@0.1.11':
+    resolution: {integrity: sha512-OuPc8qqidL/PUM8+9WgrOfSR9+b6rKIWiezGcUJ54iPTdh+Gye5Qjut6hrLWlOCMZE7Z853gN90r1ft4iChj7Q==}
+    peerDependencies:
+      '@tanstack/react-query': ^5
+      react: ^18 || ^19
+      react-dom: ^18 || ^19
+    peerDependenciesMeta:
+      '@tanstack/react-query':
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   '@rollup/rollup-android-arm-eabi@4.53.2':
     resolution: {integrity: sha512-yDPzwsgiFO26RJA4nZo8I+xqzh7sJTZIWQOxn+/XOdPE31lAvLIYCKqjV+lNH/vxE2L2iH3plKxDCRK6i+CwhA==}
@@ -1327,6 +1344,10 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
+
+  '@openrouter/sdk@0.1.11':
+    dependencies:
+      zod: 3.25.76
 
   '@rollup/rollup-android-arm-eabi@4.53.2':
     optional: true

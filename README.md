@@ -6,10 +6,10 @@ A type-safe, provider-agnostic AI agent framework with built-in OpenRouter suppo
 
 - **Type-safe**: Full TypeScript support with strict typing
 - **Provider-agnostic**: Interface-based design allows for any LLM provider
-- **OpenRouter integration**: Built-in provider for accessing 200+ models
+- **OpenRouter integration**: Uses the official `@openrouter/sdk` for accessing 200+ models
 - **Tool calling**: Define and use tools with automatic execution loops
 - **Structured output**: Support for Zod and other schema validators
-- **Minimal dependencies**: Only requires Zod for schema validation
+- **Minimal dependencies**: Built on official SDKs with Zod for schema validation
 - **ESM-first**: Modern ES modules with proper imports
 
 ## Installation
@@ -262,9 +262,12 @@ class OpenRouterProvider implements LLMProvider {
   constructor(opts?: {
     apiKey?: string;
     baseUrl?: string;
+    debugLogger?: typeof console; // Enable SDK debug logging
   });
 }
 ```
+
+The provider uses the official `@openrouter/sdk` under the hood.
 
 ### createAgent
 
