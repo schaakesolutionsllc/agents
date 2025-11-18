@@ -1,6 +1,6 @@
 # Releasing
 
-This document describes how to publish new versions of `@schaake/agents` to GitHub Packages.
+This document describes how to publish new versions of `@schaakesolutionsllc/agents` to GitHub Packages.
 
 ## Prerequisites
 
@@ -81,7 +81,7 @@ To install the package in other projects:
 Create or update `.npmrc` in your project:
 
 ```
-@schaake:registry=https://npm.pkg.github.com
+@schaakesolutionsllc:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
 ```
 
@@ -90,9 +90,9 @@ Replace `YOUR_GITHUB_TOKEN` with a personal access token that has `read:packages
 ### 2. Install the package
 
 ```bash
-npm install @schaake/agents
+npm install @schaakesolutionsllc/agents
 # or
-pnpm add @schaake/agents
+pnpm add @schaakesolutionsllc/agents
 ```
 
 ## Troubleshooting

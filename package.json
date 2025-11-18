@@ -1,5 +1,5 @@
 {
-  "name": "@schaake/agents",
+  "name": "@schaakesolutionsllc/agents",
   "version": "0.1.2",
   "repository": "https://github.com/schaakesolutionsllc/agents.git",
   "description": "Type-safe AI agent framework with OpenRouter provider support",
