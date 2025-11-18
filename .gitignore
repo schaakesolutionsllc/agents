@@ -18,6 +18,9 @@ test-document.pdf
 .env.local
 .env.*.local
 
+# npm auth tokens
+.npmrc
+
 # IDE
 .vscode/
 .idea/
