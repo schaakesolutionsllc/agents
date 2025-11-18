@@ -657,6 +657,12 @@ pnpm test
 # Run tests in watch mode
 pnpm test:watch
 
+# Run E2E tests (requires OPENROUTER_API_KEY)
+pnpm test:e2e
+
+# Run E2E tests in watch mode
+pnpm test:e2e:watch
+
 # Lint code
 pnpm lint
 
@@ -732,7 +738,7 @@ function defineTool(
 ```typescript
 function defineSyncTool(
   schema: ToolSchema,
-  handler: (args: any, ctx: AgentContext) => any
+  handler: (args: Record<string, unknown>, ctx: AgentContext) => unknown
 ): ToolDefinition
 ```
 
