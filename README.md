@@ -1,5 +1,9 @@
 # @schaakesolutionsllc/agents
 
+[![CI](https://github.com/schaakesolutionsllc/agents/actions/workflows/ci.yml/badge.svg)](https://github.com/schaakesolutionsllc/agents/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org)
+
 A type-safe, provider-agnostic AI agent framework with built-in OpenRouter support. Build intelligent agents with tools, structured outputs, and flexible schema validation.
 
 ## Features
