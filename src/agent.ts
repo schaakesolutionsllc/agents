@@ -6,14 +6,171 @@ import {
   AgentRunOptions,
   AgentRunResult,
   AgentStream,
+  ChatRequest,
   ChatStreamChunk,
   ChatTool,
   ChatToolCall,
   Message,
+  ResponseFormat,
   StreamChunk,
   ToolDefinition,
+  ToolSchema,
 } from "./types.js";
-import * as z from "zod";
+import { z } from "zod";
+
+/**
+ * Default maximum number of tool iterations before agent stops
+ */
+export const DEFAULT_MAX_TOOL_ITERATIONS = 4;
+
+/**
+ * Error message prefixes for consistent error reporting
+ */
+export const ERROR_PREFIXES = {
+  AGENT: "createAgent:",
+  OPENROUTER: "OpenRouterProvider:",
+  EXTRACTION: "extractDocument:",
+  WEB_SEARCH: "searchWithWeb:",
+} as const;
+
+/**
+ * Validation error detail for a single field.
+ */
+interface ValidationErrorDetail {
+  field: string;
+  message: string;
+  expected?: string;
+  received?: string;
+}
+
+/**
+ * Validates tool arguments against the tool's JSON schema.
+ *
+ * Performs runtime validation to ensure arguments match the expected schema
+ * before tool execution. Uses basic JSON Schema validation patterns for
+ * type checking and required field validation.
+ *
+ * @param toolName - Name of the tool (for error messages)
+ * @param args - The arguments object to validate
+ * @param schema - The tool's schema containing parameter definitions
+ * @throws Error when validation fails with detailed field-level error information
+ *
+ * @example
+ * ```typescript
+ * validateToolArguments("get_weather", { location: "SF" }, weatherToolSchema);
+ * // Throws if 'location' is not a string or missing when required
+ * ```
+ *
+ * @internal
+ */
+export function validateToolArguments(
+  toolName: string,
+  args: unknown,
+  schema: ToolSchema,
+): void {
+  const errors: ValidationErrorDetail[] = [];
+  const params = schema.parameters;
+
+  // Handle edge case: args is not an object
+  if (typeof args !== "object" || args === null) {
+    throw new Error(
+      `${ERROR_PREFIXES.AGENT} Tool argument validation failed for '${toolName}': Expected object, received ${args === null ? "null" : typeof args}`,
+    );
+  }
+
+  const argsObj = args as Record<string, unknown>;
+
+  // Check required fields
+  const requiredFields = params.required as string[] | undefined;
+  if (requiredFields && Array.isArray(requiredFields)) {
+    for (const field of requiredFields) {
+      if (!(field in argsObj)) {
+        errors.push({
+          field,
+          message: "Missing required field",
+          expected: "value",
+          received: "undefined",
+        });
+      }
+    }
+  }
+
+  // Check types for provided fields
+  const properties = params.properties as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  if (properties) {
+    for (const [field, value] of Object.entries(argsObj)) {
+      const propSchema = properties[field];
+      if (propSchema) {
+        const expectedType = propSchema.type as string | undefined;
+        if (expectedType) {
+          const actualType = getJsonSchemaType(value);
+          if (!isTypeMatch(expectedType, actualType, value)) {
+            errors.push({
+              field,
+              message: `Invalid type`,
+              expected: expectedType,
+              received: actualType,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    const errorMessages = errors.map((e) => {
+      if (e.expected && e.received) {
+        return `${e.field}: ${e.message} (expected ${e.expected}, received ${e.received})`;
+      }
+      return `${e.field}: ${e.message}`;
+    });
+    throw new Error(
+      `${ERROR_PREFIXES.AGENT} Tool argument validation failed for '${toolName}': ${errorMessages.join("; ")}`,
+    );
+  }
+}
+
+/**
+ * Gets the JSON Schema type name for a JavaScript value.
+ *
+ * @param value - The value to get the type for
+ * @returns The JSON Schema type name
+ *
+ * @internal
+ */
+function getJsonSchemaType(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}
+
+/**
+ * Checks if an actual type matches the expected JSON Schema type.
+ *
+ * @param expected - The expected JSON Schema type
+ * @param actual - The actual type of the value
+ * @param value - The actual value (for integer checking)
+ * @returns True if types match
+ *
+ * @internal
+ */
+function isTypeMatch(
+  expected: string,
+  actual: string,
+  value: unknown,
+): boolean {
+  // Direct match
+  if (expected === actual) return true;
+
+  // Integer is a special case - it's a number with no fractional part
+  if (expected === "integer" && actual === "number") {
+    return Number.isInteger(value);
+  }
+
+  return false;
+}
 
 /**
  * Internal interface for accumulating streaming tool calls.
@@ -103,8 +260,8 @@ function toChatTools(
  *
  * @internal
  */
-function buildInitialMessages<I>(
-  config: AgentConfig<I, any>,
+function buildInitialMessages<I, O>(
+  config: AgentConfig<I, O>,
   input: I,
 ): Message[] {
   const msgs: Message[] = [];
@@ -206,6 +363,9 @@ async function runToolCalls(
     });
 
     try {
+      // Validate arguments against tool schema before execution
+      validateToolArguments(name, args, def.schema);
+
       const result = await def.handler(args, ctx);
 
       ctx.logger?.({ type: "tool_result", data: { name, result } });
@@ -268,6 +428,191 @@ async function runToolCalls(
   }
 
   return toolMessages;
+}
+
+/**
+ * Builds the complete configuration object for a provider chat call.
+ * Consolidates all sampling, token, metadata, and routing parameters
+ * into a single call configuration object.
+ *
+ * @template I - The input type of the agent
+ * @template O - The output type of the agent
+ * @param config - The agent configuration
+ * @param messages - The message array to send to the provider
+ * @param chatTools - The ChatTool[] or undefined for tool calls
+ * @param stream - Whether this is a streaming call
+ * @param responseFormat - Response format for structured outputs
+ * @param metadata - Runtime metadata for this execution
+ * @returns Complete provider call configuration object
+ *
+ * @internal
+ */
+function buildProviderCallConfig<I, O>(
+  config: AgentConfig<I, O>,
+  messages: Message[],
+  chatTools: ChatTool[] | undefined,
+  stream: boolean,
+  responseFormat: ResponseFormat | undefined,
+  metadata: Record<string, unknown> | undefined,
+): ChatRequest {
+  return {
+    model: config.model.model,
+    models: config.model.models,
+    messages,
+    tools: chatTools,
+    stream,
+    // Sampling parameters
+    temperature: config.model.temperature,
+    topP: config.model.topP,
+    frequencyPenalty: config.model.frequencyPenalty,
+    presencePenalty: config.model.presencePenalty,
+    seed: config.model.seed,
+    stop: config.model.stop,
+    // Token limits
+    maxTokens: config.model.maxTokens,
+    // Metadata and output
+    metadata,
+    responseFormat,
+    // Provider routing
+    providerOptions: config.model.providerOptions,
+    // Reasoning
+    reasoning: config.model.reasoning,
+  };
+}
+
+/**
+ * Creates an agent execution context with unique ID and event handlers.
+ *
+ * The context is passed to all tool handlers and contains:
+ * - runId: Unique identifier for this execution
+ * - metadata: Optional metadata for logging/tracking
+ * - logger: Optional logging callback
+ * - onEvent: Event emission callback for monitoring
+ *
+ * @param metadata - Optional metadata including logger callback
+ * @param onEvent - Optional event handler for agent events
+ * @returns AgentContext with all required properties initialized
+ *
+ * @internal
+ */
+function createContext(
+  metadata: AgentRunOptions["metadata"],
+  onEvent: AgentRunOptions["onEvent"],
+): AgentContext {
+  // Extract logger from metadata if provided
+  const logger =
+    metadata && "logger" in metadata && typeof metadata.logger === "function"
+      ? (metadata.logger as (event: import("./types.js").AgentLogEvent) => void)
+      : undefined;
+
+  return {
+    runId: crypto.randomUUID(),
+    metadata,
+    logger,
+    onEvent,
+  };
+}
+
+/**
+ * Builds JSON schema response format from an output schema.
+ *
+ * Converts a Zod schema into OpenAI-compatible JSON schema format
+ * with inline refs for provider compatibility. Used when the agent
+ * is configured with an outputSchema for structured outputs.
+ *
+ * @template I - The input type
+ * @template O - The output type
+ * @param config - Agent configuration containing name and outputSchema
+ * @returns ResponseFormat object suitable for provider chat calls,
+ *          or undefined if no outputSchema is configured
+ *
+ * @internal
+ */
+function buildResponseFormat<I, O>(
+  config: AgentConfig<I, O>,
+): ResponseFormat | undefined {
+  if (!config.outputSchema) return undefined;
+
+  return {
+    type: "json_schema" as const,
+    jsonSchema: {
+      name: config.name.replace(/[^a-zA-Z0-9_-]/g, "_"),
+      description: `Structured output for ${config.name}`,
+      schema: z.toJSONSchema(config.outputSchema as z.ZodType, {
+        reused: "inline", // Inline all refs for OpenRouter compatibility
+      }),
+      strict: true,
+    },
+  };
+}
+
+/**
+ * Parses raw model output with support for structured and raw outputs.
+ *
+ * When outputSchema is configured:
+ * 1. Attempts direct JSON parse of rawContent
+ * 2. Falls back to extracting JSON from markdown code blocks
+ * 3. Logs and throws helpful error if both fail
+ * 4. Validates parsed JSON against outputSchema
+ *
+ * When no outputSchema: returns rawContent as-is (cast to output type)
+ *
+ * Handles common LLM behavior where structured output may be wrapped
+ * in markdown code blocks or returned as raw JSON.
+ *
+ * @template I - The input type
+ * @template O - The expected output type
+ * @param rawContent - Raw text from the model
+ * @param config - Agent configuration with optional outputSchema
+ * @param ctx - Agent context for logging
+ * @returns Parsed output validated against schema, or raw content if no schema
+ * @throws Error when JSON parsing fails (when outputSchema is configured)
+ *
+ * @internal
+ */
+function parseStructuredOutput<I, O>(
+  rawContent: string,
+  config: AgentConfig<I, O>,
+  ctx: AgentContext,
+): O {
+  if (!config.outputSchema) {
+    return rawContent as unknown as O;
+  }
+
+  const parseJsonContent = (): unknown => {
+    try {
+      return JSON.parse(rawContent) as unknown;
+    } catch (parseError) {
+      // Try to extract JSON from markdown code blocks
+      const jsonMatch = rawContent.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (jsonMatch?.[1]) {
+        try {
+          return JSON.parse(jsonMatch[1]) as unknown;
+        } catch {
+          // Fall through to error
+        }
+      }
+
+      // If we have an output schema but can't parse JSON, throw a helpful error
+      ctx.logger?.({
+        type: "final",
+        data: {
+          content: rawContent,
+          error: "Failed to parse JSON",
+          parseError:
+            parseError instanceof Error
+              ? parseError.message
+              : String(parseError),
+        },
+      });
+
+      throw new Error(
+        `${ERROR_PREFIXES.AGENT} Failed to parse structured output as JSON. Raw content: ${rawContent.substring(0, 200)}${rawContent.length > 200 ? "..." : ""}`,
+      );
+    }
+  };
+
+  return config.outputSchema.parse(parseJsonContent());
 }
 
 /**
@@ -350,41 +695,23 @@ export function createAgent<I = unknown, O = unknown>(
   async function run(input: I, options: AgentRunOptions = {}): Promise<O> {
     const {
       stream = false,
-      maxToolIterations = 4,
+      maxToolIterations = DEFAULT_MAX_TOOL_ITERATIONS,
       metadata,
       onEvent,
     } = options;
     if (stream) {
       // For now, only non-streaming is implemented
       // You can add a `runStream` method later that uses provider.chatStream
-      throw new Error("Streaming not implemented yet in createAgent.run");
+      throw new Error(
+        `${ERROR_PREFIXES.AGENT} Streaming not implemented yet in run`,
+      );
     }
 
-    const ctx: AgentContext = {
-      runId: crypto.randomUUID(),
-      metadata,
-      logger: metadata?.logger ?? undefined,
-      onEvent,
-    };
-
+    const ctx = createContext(metadata, onEvent);
     const messages = buildInitialMessages(config, input);
     const tools = config.tools ?? [];
     const chatTools = toChatTools(tools);
-
-    // Generate responseFormat from outputSchema if provided
-    const responseFormat = config.outputSchema
-      ? {
-          type: "json_schema" as const,
-          jsonSchema: {
-            name: config.name.replace(/[^a-zA-Z0-9_-]/g, "_"),
-            description: `Structured output for ${config.name}`,
-            schema: z.toJSONSchema(config.outputSchema as z.ZodType, {
-              reused: "inline", // Inline all refs for OpenRouter compatibility
-            }),
-            strict: true,
-          },
-        }
-      : undefined;
+    const responseFormat = buildResponseFormat(config);
 
     for (let i = 0; i < maxToolIterations; i += 1) {
       ctx.logger?.({
@@ -399,29 +726,16 @@ export function createAgent<I = unknown, O = unknown>(
         messages: [...messages], // Copy to avoid mutation issues
       });
 
-      const res = await config.model.provider.chat({
-        model: config.model.model,
-        models: config.model.models,
-        messages,
-        tools: chatTools,
-        stream: false,
-        // Sampling parameters
-        temperature: config.model.temperature,
-        topP: config.model.topP,
-        frequencyPenalty: config.model.frequencyPenalty,
-        presencePenalty: config.model.presencePenalty,
-        seed: config.model.seed,
-        stop: config.model.stop,
-        // Token limits
-        maxTokens: config.model.maxTokens,
-        // Metadata and output
-        metadata,
-        responseFormat,
-        // Provider routing
-        providerOptions: config.model.providerOptions,
-        // Reasoning
-        reasoning: config.model.reasoning,
-      });
+      const res = await config.model.provider.chat(
+        buildProviderCallConfig(
+          config,
+          messages,
+          chatTools,
+          false,
+          responseFormat,
+          metadata,
+        ),
+      );
 
       const assistantMsg = res.message;
       const toolCalls = assistantMsg.toolCalls;
@@ -454,45 +768,7 @@ export function createAgent<I = unknown, O = unknown>(
 
       // No tool calls – assume we're done
       const rawContent = assistantMsg.content ?? "";
-
-      const parsed = config.outputSchema
-        ? config.outputSchema.parse(
-            (() => {
-              try {
-                return JSON.parse(rawContent);
-              } catch (parseError) {
-                // Try to extract JSON from markdown code blocks
-                const jsonMatch = rawContent.match(
-                  /```(?:json)?\s*\n?([\s\S]*?)\n?```/,
-                );
-                if (jsonMatch?.[1]) {
-                  try {
-                    return JSON.parse(jsonMatch[1]);
-                  } catch {
-                    // Fall through to error
-                  }
-                }
-
-                // If we have an output schema but can't parse JSON, throw a helpful error
-                ctx.logger?.({
-                  type: "final",
-                  data: {
-                    content: rawContent,
-                    error: "Failed to parse JSON",
-                    parseError:
-                      parseError instanceof Error
-                        ? parseError.message
-                        : String(parseError),
-                  },
-                });
-
-                throw new Error(
-                  `Failed to parse structured output as JSON. Raw content: ${rawContent.substring(0, 200)}${rawContent.length > 200 ? "..." : ""}`,
-                );
-              }
-            })(),
-          )
-        : (rawContent as unknown as O);
+      const parsed = parseStructuredOutput(rawContent, config, ctx);
 
       ctx.logger?.({ type: "final", data: { content: rawContent } });
 
@@ -505,7 +781,9 @@ export function createAgent<I = unknown, O = unknown>(
       return parsed;
     }
 
-    throw new Error("Agent exceeded maxToolIterations without finishing");
+    throw new Error(
+      `${ERROR_PREFIXES.AGENT} Agent exceeded maxToolIterations without finishing`,
+    );
   }
 
   /**
@@ -532,41 +810,21 @@ export function createAgent<I = unknown, O = unknown>(
   ): Promise<AgentRunResult<O>> {
     const {
       stream = false,
-      maxToolIterations = 4,
+      maxToolIterations = DEFAULT_MAX_TOOL_ITERATIONS,
       metadata,
       onEvent,
     } = options;
     if (stream) {
       throw new Error(
-        "Streaming not implemented yet in createAgent.runWithHistory",
+        `${ERROR_PREFIXES.AGENT} Streaming not implemented yet in runWithHistory`,
       );
     }
 
-    const ctx: AgentContext = {
-      runId: crypto.randomUUID(),
-      metadata,
-      logger: metadata?.logger ?? undefined,
-      onEvent,
-    };
-
+    const ctx = createContext(metadata, onEvent);
     const messages = buildInitialMessages(config, input);
     const tools = config.tools ?? [];
     const chatTools = toChatTools(tools);
-
-    // Generate responseFormat from outputSchema if provided
-    const responseFormat = config.outputSchema
-      ? {
-          type: "json_schema" as const,
-          jsonSchema: {
-            name: config.name.replace(/[^a-zA-Z0-9_-]/g, "_"),
-            description: `Structured output for ${config.name}`,
-            schema: z.toJSONSchema(config.outputSchema as z.ZodType, {
-              reused: "inline",
-            }),
-            strict: true,
-          },
-        }
-      : undefined;
+    const responseFormat = buildResponseFormat(config);
 
     let iterationCount = 0;
 
@@ -584,29 +842,16 @@ export function createAgent<I = unknown, O = unknown>(
         messages: [...messages], // Copy to avoid mutation issues
       });
 
-      const res = await config.model.provider.chat({
-        model: config.model.model,
-        models: config.model.models,
-        messages,
-        tools: chatTools,
-        stream: false,
-        // Sampling parameters
-        temperature: config.model.temperature,
-        topP: config.model.topP,
-        frequencyPenalty: config.model.frequencyPenalty,
-        presencePenalty: config.model.presencePenalty,
-        seed: config.model.seed,
-        stop: config.model.stop,
-        // Token limits
-        maxTokens: config.model.maxTokens,
-        // Metadata and output
-        metadata,
-        responseFormat,
-        // Provider routing
-        providerOptions: config.model.providerOptions,
-        // Reasoning
-        reasoning: config.model.reasoning,
-      });
+      const res = await config.model.provider.chat(
+        buildProviderCallConfig(
+          config,
+          messages,
+          chatTools,
+          false,
+          responseFormat,
+          metadata,
+        ),
+      );
 
       const assistantMsg = res.message;
       const toolCalls = assistantMsg.toolCalls;
@@ -637,44 +882,7 @@ export function createAgent<I = unknown, O = unknown>(
 
       // No tool calls – assume we're done
       const rawContent = assistantMsg.content ?? "";
-
-      const parsed = config.outputSchema
-        ? config.outputSchema.parse(
-            (() => {
-              try {
-                return JSON.parse(rawContent);
-              } catch (parseError) {
-                // Try to extract JSON from markdown code blocks
-                const jsonMatch = rawContent.match(
-                  /```(?:json)?\s*\n?([\s\S]*?)\n?```/,
-                );
-                if (jsonMatch?.[1]) {
-                  try {
-                    return JSON.parse(jsonMatch[1]);
-                  } catch {
-                    // Fall through to error
-                  }
-                }
-
-                ctx.logger?.({
-                  type: "final",
-                  data: {
-                    content: rawContent,
-                    error: "Failed to parse JSON",
-                    parseError:
-                      parseError instanceof Error
-                        ? parseError.message
-                        : String(parseError),
-                  },
-                });
-
-                throw new Error(
-                  `Failed to parse structured output as JSON. Raw content: ${rawContent.substring(0, 200)}${rawContent.length > 200 ? "..." : ""}`,
-                );
-              }
-            })(),
-          )
-        : (rawContent as unknown as O);
+      const parsed = parseStructuredOutput(rawContent, config, ctx);
 
       ctx.logger?.({ type: "final", data: { content: rawContent } });
 
@@ -691,7 +899,9 @@ export function createAgent<I = unknown, O = unknown>(
       };
     }
 
-    throw new Error("Agent exceeded maxToolIterations without finishing");
+    throw new Error(
+      `${ERROR_PREFIXES.AGENT} Agent exceeded maxToolIterations without finishing`,
+    );
   }
 
   /**
@@ -703,33 +913,17 @@ export function createAgent<I = unknown, O = unknown>(
    * @returns An AgentStream that can be iterated over and provides finalResult()
    */
   function stream(input: I, options: AgentRunOptions = {}): AgentStream<O> {
-    const { maxToolIterations = 4, metadata, onEvent } = options;
-
-    const ctx: AgentContext = {
-      runId: crypto.randomUUID(),
+    const {
+      maxToolIterations = DEFAULT_MAX_TOOL_ITERATIONS,
       metadata,
-      logger: metadata?.logger ?? undefined,
       onEvent,
-    };
+    } = options;
 
+    const ctx = createContext(metadata, onEvent);
     const messages = buildInitialMessages(config, input);
     const tools = config.tools ?? [];
     const chatTools = toChatTools(tools);
-
-    // Generate responseFormat from outputSchema if provided
-    const responseFormat = config.outputSchema
-      ? {
-          type: "json_schema" as const,
-          jsonSchema: {
-            name: config.name.replace(/[^a-zA-Z0-9_-]/g, "_"),
-            description: `Structured output for ${config.name}`,
-            schema: z.toJSONSchema(config.outputSchema as z.ZodType, {
-              reused: "inline",
-            }),
-            strict: true,
-          },
-        }
-      : undefined;
+    const responseFormat = buildResponseFormat(config);
 
     // State for the stream
     let iterationCount = 0;
@@ -760,29 +954,16 @@ export function createAgent<I = unknown, O = unknown>(
         });
 
         // Stream from the provider
-        const streamIterable = config.model.provider.chatStream({
-          model: config.model.model,
-          models: config.model.models,
-          messages,
-          tools: chatTools,
-          stream: true,
-          // Sampling parameters
-          temperature: config.model.temperature,
-          topP: config.model.topP,
-          frequencyPenalty: config.model.frequencyPenalty,
-          presencePenalty: config.model.presencePenalty,
-          seed: config.model.seed,
-          stop: config.model.stop,
-          // Token limits
-          maxTokens: config.model.maxTokens,
-          // Metadata and output
-          metadata,
-          responseFormat,
-          // Provider routing
-          providerOptions: config.model.providerOptions,
-          // Reasoning
-          reasoning: config.model.reasoning,
-        });
+        const streamIterable = config.model.provider.chatStream(
+          buildProviderCallConfig(
+            config,
+            messages,
+            chatTools,
+            true,
+            responseFormat,
+            metadata,
+          ),
+        );
 
         // Accumulate the streaming response
         let accumulatedContent = "";
@@ -861,7 +1042,7 @@ export function createAgent<I = unknown, O = unknown>(
                   typeof toolMsg.content === "string"
                     ? toolMsg.content
                     : JSON.stringify(toolMsg.content);
-                const result = JSON.parse(contentStr ?? "{}");
+                const result: unknown = JSON.parse(contentStr ?? "{}");
                 yield {
                   type: "tool_result",
                   toolResult: {
@@ -871,7 +1052,7 @@ export function createAgent<I = unknown, O = unknown>(
                 };
               } catch {
                 // If parsing fails, emit raw content
-                const rawContent =
+                const rawContent: unknown =
                   typeof toolMsg.content === "string"
                     ? toolMsg.content
                     : JSON.stringify(toolMsg.content);
@@ -893,45 +1074,7 @@ export function createAgent<I = unknown, O = unknown>(
 
         // No tool calls - we're done
         const rawContent = accumulatedContent;
-
-        // Parse output
-        const parsed = config.outputSchema
-          ? config.outputSchema.parse(
-              (() => {
-                try {
-                  return JSON.parse(rawContent);
-                } catch (parseError) {
-                  // Try to extract JSON from markdown code blocks
-                  const jsonMatch = rawContent.match(
-                    /```(?:json)?\s*\n?([\s\S]*?)\n?```/,
-                  );
-                  if (jsonMatch?.[1]) {
-                    try {
-                      return JSON.parse(jsonMatch[1]);
-                    } catch {
-                      // Fall through to error
-                    }
-                  }
-
-                  ctx.logger?.({
-                    type: "final",
-                    data: {
-                      content: rawContent,
-                      error: "Failed to parse JSON",
-                      parseError:
-                        parseError instanceof Error
-                          ? parseError.message
-                          : String(parseError),
-                    },
-                  });
-
-                  throw new Error(
-                    `Failed to parse structured output as JSON. Raw content: ${rawContent.substring(0, 200)}${rawContent.length > 200 ? "..." : ""}`,
-                  );
-                }
-              })(),
-            )
-          : (rawContent as unknown as O);
+        const parsed = parseStructuredOutput(rawContent, config, ctx);
 
         finalOutput = parsed;
         streamingComplete = true;
@@ -948,7 +1091,9 @@ export function createAgent<I = unknown, O = unknown>(
         return;
       }
 
-      throw new Error("Agent exceeded maxToolIterations without finishing");
+      throw new Error(
+        `${ERROR_PREFIXES.AGENT} Agent exceeded maxToolIterations without finishing`,
+      );
     }
 
     // Create the iterator
@@ -970,7 +1115,7 @@ export function createAgent<I = unknown, O = unknown>(
 
         if (finalOutput === undefined) {
           throw new Error(
-            "Stream did not complete successfully - no output available",
+            `${ERROR_PREFIXES.AGENT} Stream did not complete successfully - no output available`,
           );
         }
 

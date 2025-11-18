@@ -85,31 +85,42 @@ export async function createEmbeddings(
       }
     : undefined;
 
+  // SDK embeddings response type definition
+  interface EmbeddingsResponse {
+    data?: Array<{
+      embedding: number[] | string;
+    }>;
+    model?: string;
+    usage?: {
+      promptTokens?: number;
+      totalTokens?: number;
+      cost?: number;
+    };
+  }
+
   const response = (await provider.client.embeddings.generate({
     input,
     model,
     provider: sdkProvider,
     encodingFormat,
     user,
-  })) as any;
+  })) as EmbeddingsResponse;
 
   // Extract embeddings from response
   // Handle various response formats from the SDK
-  const responseData = response?.data ?? response;
-  const embeddings: number[][] = Array.isArray(responseData)
-    ? responseData.map((item: any) => {
-        if (typeof item.embedding === "string") {
-          // Base64 encoded - decode to float array
-          const buffer = Buffer.from(item.embedding, "base64");
-          const floats: number[] = [];
-          for (let i = 0; i < buffer.length; i += 4) {
-            floats.push(buffer.readFloatLE(i));
-          }
-          return floats;
-        }
-        return item.embedding;
-      })
-    : [];
+  const responseData = response?.data ?? [];
+  const embeddings: number[][] = responseData.map((item) => {
+    if (typeof item.embedding === "string") {
+      // Base64 encoded - decode to float array
+      const buffer = Buffer.from(item.embedding, "base64");
+      const floats: number[] = [];
+      for (let i = 0; i < buffer.length; i += 4) {
+        floats.push(buffer.readFloatLE(i));
+      }
+      return floats;
+    }
+    return item.embedding;
+  });
 
   return {
     embeddings,
@@ -139,7 +150,13 @@ export async function createEmbeddings(
  */
 export async function listEmbeddingModels(
   provider: OpenRouterProvider,
-): Promise<Array<{ id: string; name?: string; pricing?: any }>> {
+): Promise<
+  Array<{
+    id: string;
+    name?: string;
+    pricing?: { prompt?: string; completion?: string };
+  }>
+> {
   const response = await provider.client.embeddings.listModels();
 
   return response.data.map((model) => ({

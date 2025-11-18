@@ -1,6 +1,7 @@
 // src/extraction.ts
 
-import { z } from "zod/v4";
+import { z } from "zod";
+import { ERROR_PREFIXES } from "./agent.js";
 import type { OpenRouterProvider } from "./openrouter.js";
 
 /**
@@ -113,7 +114,7 @@ export interface ExtractDocumentResult<T> {
   };
 
   /** Raw response for debugging */
-  raw?: any;
+  raw?: unknown;
 }
 
 /**
@@ -191,7 +192,7 @@ export async function extractDocument<T>(
   // Validate document has either fileData or fileUrl
   if (!document.fileData && !document.fileUrl) {
     throw new Error(
-      "extractDocument: document must have either fileData or fileUrl",
+      `${ERROR_PREFIXES.EXTRACTION} document must have either fileData or fileUrl`,
     );
   }
 
@@ -291,7 +292,7 @@ export async function extractDocument<T>(
 
   if (!rawContent) {
     throw new Error(
-      `extractDocument: No output text in response. ` +
+      `${ERROR_PREFIXES.EXTRACTION} No output text in response. ` +
         `Output items: ${JSON.stringify(response.output.map((o) => ("type" in o ? o.type : "unknown")))}`,
     );
   }
@@ -308,12 +309,12 @@ export async function extractDocument<T>(
         parsedJson = JSON.parse(jsonMatch[1]);
       } catch {
         throw new Error(
-          `extractDocument: Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
+          `${ERROR_PREFIXES.EXTRACTION} Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
         );
       }
     } else {
       throw new Error(
-        `extractDocument: Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
+        `${ERROR_PREFIXES.EXTRACTION} Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
       );
     }
   }
@@ -328,7 +329,7 @@ export async function extractDocument<T>(
         ? validationError.message
         : "Unknown validation error";
     throw new Error(
-      `extractDocument: Response does not match schema. ${errorMessage}`,
+      `${ERROR_PREFIXES.EXTRACTION} Response does not match schema. ${errorMessage}`,
     );
   }
 

@@ -105,7 +105,7 @@ export function defineTool(
  */
 export function defineSyncTool(
   schema: ToolSchema,
-  handler: (args: any, ctx: AgentContext) => any,
+  handler: (args: Record<string, unknown>, ctx: AgentContext) => unknown,
 ): ToolDefinition {
   const asyncHandler: ToolHandler = (args, ctx) =>
     Promise.resolve(handler(args, ctx));

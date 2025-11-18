@@ -1,6 +1,7 @@
 // src/web-search.ts
 
-import { z } from "zod/v4";
+import { z } from "zod";
+import { ERROR_PREFIXES } from "./agent.js";
 import type { OpenRouterProvider } from "./openrouter.js";
 
 /**
@@ -108,7 +109,7 @@ export interface WebSearchResult<T> {
   };
 
   /** Raw response for debugging */
-  raw?: any;
+  raw?: unknown;
 }
 
 /**
@@ -251,7 +252,7 @@ export async function searchWithWeb<T = string>(
 
   if (!rawContent) {
     throw new Error(
-      `searchWithWeb: No output text in response. ` +
+      `${ERROR_PREFIXES.WEB_SEARCH} No output text in response. ` +
         `Output items: ${JSON.stringify(response.output.map((o) => ("type" in o ? o.type : "unknown")))}`,
     );
   }
@@ -272,12 +273,12 @@ export async function searchWithWeb<T = string>(
           parsedJson = JSON.parse(jsonMatch[1]);
         } catch {
           throw new Error(
-            `searchWithWeb: Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
+            `${ERROR_PREFIXES.WEB_SEARCH} Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
           );
         }
       } else {
         throw new Error(
-          `searchWithWeb: Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
+          `${ERROR_PREFIXES.WEB_SEARCH} Failed to parse response as JSON. Raw content: ${rawContent.substring(0, 500)}`,
         );
       }
     }
@@ -291,7 +292,7 @@ export async function searchWithWeb<T = string>(
           ? validationError.message
           : "Unknown validation error";
       throw new Error(
-        `searchWithWeb: Response does not match schema. ${errorMessage}`,
+        `${ERROR_PREFIXES.WEB_SEARCH} Response does not match schema. ${errorMessage}`,
       );
     }
   } else {

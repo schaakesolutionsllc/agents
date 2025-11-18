@@ -310,12 +310,15 @@ export interface ToolSchema {
   /** Human-readable description of what the tool does */
   description?: string;
   /** JSON Schema object describing the tool's parameters */
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
 }
 
 /**
  * Handler function signature for tool execution.
  * Called when the LLM invokes a tool with parsed arguments.
+ *
+ * @template TArgs - The shape of arguments the tool accepts (defaults to `Record<string, unknown>` for backward compatibility)
+ * @template TResult - The return type of the tool (defaults to `unknown` for flexibility)
  *
  * @param args - The parsed arguments from the LLM's tool call
  * @param ctx - The agent context with runtime information
@@ -323,24 +326,41 @@ export interface ToolSchema {
  *
  * @example
  * ```typescript
+ * // Untyped usage (backward compatible)
  * const weatherHandler: ToolHandler = async (args, ctx) => {
  *   const { location } = args;
  *   const weather = await fetchWeather(location);
  *   return { temperature: weather.temp, condition: weather.condition };
  * };
+ *
+ * // Typed usage
+ * interface WeatherArgs { location: string }
+ * interface WeatherResult { temperature: number; condition: string }
+ *
+ * const typedHandler: ToolHandler<WeatherArgs, WeatherResult> = async (args, ctx) => {
+ *   const weather = await fetchWeather(args.location);
+ *   return { temperature: weather.temp, condition: weather.condition };
+ * };
  * ```
  */
-export type ToolHandler = (args: any, ctx: AgentContext) => Promise<any>;
+export type ToolHandler<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = (args: TArgs, ctx: AgentContext) => Promise<TResult>;
 
 /**
  * Complete tool definition combining schema and handler.
  * Used to define tools that agents can invoke during execution.
+ *
+ * @template TArgs - The shape of arguments the tool accepts (defaults to `Record<string, unknown>` for backward compatibility)
+ * @template TResult - The return type of the tool (defaults to `unknown` for flexibility)
  *
  * @see defineTool - Helper function to create tool definitions
  * @see defineSyncTool - Helper for synchronous tool handlers
  *
  * @example
  * ```typescript
+ * // Untyped usage (backward compatible)
  * const weatherTool: ToolDefinition = {
  *   schema: {
  *     name: "get_weather",
@@ -351,13 +371,28 @@ export type ToolHandler = (args: any, ctx: AgentContext) => Promise<any>;
  *     return await fetchWeather(args.location);
  *   }
  * };
+ *
+ * // Typed usage
+ * interface WeatherArgs { location: string }
+ * interface WeatherResult { temperature: number; condition: string }
+ *
+ * const typedTool: ToolDefinition<WeatherArgs, WeatherResult> = {
+ *   schema: { ... },
+ *   handler: async (args) => {
+ *     // args is typed as WeatherArgs
+ *     return { temperature: 72, condition: "sunny" };
+ *   }
+ * };
  * ```
  */
-export interface ToolDefinition {
+export interface ToolDefinition<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> {
   /** The schema describing the tool's interface */
   schema: ToolSchema;
   /** The async handler function that executes the tool */
-  handler: ToolHandler;
+  handler: ToolHandler<TArgs, TResult>;
 }
 
 /**
@@ -374,7 +409,7 @@ export interface ChatTool {
     /** Description of what the function does */
     description?: string;
     /** JSON Schema for the function parameters */
-    parameters?: Record<string, any>;
+    parameters?: Record<string, unknown>;
   };
 }
 
@@ -482,7 +517,7 @@ export interface ChatResponse {
   /** Reason the model stopped generating (e.g., "stop", "tool_calls") */
   finishReason: string | null;
   /** Raw response from the provider for debugging */
-  raw?: any;
+  raw?: unknown;
 }
 
 /**
@@ -566,24 +601,49 @@ export interface ChatRequest {
   topLogprobs?: number;
 
   /** Additional metadata for the request */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 
   /** Response format for structured output */
-  responseFormat?: {
-    type: "json_schema" | "json_object" | "text";
-    jsonSchema?: {
-      name: string;
-      description?: string;
-      schema?: Record<string, any>;
-      strict?: boolean;
-    };
-  };
+  responseFormat?: ResponseFormat;
 
   /** Provider routing options */
   providerOptions?: ProviderOptions;
 
   /** Reasoning options for o1-style models */
   reasoning?: ReasoningOptions;
+}
+
+/**
+ * Response format specification for structured outputs.
+ * Used to request JSON schema validation from providers.
+ *
+ * @example
+ * ```typescript
+ * const format: ResponseFormat = {
+ *   type: "json_schema",
+ *   jsonSchema: {
+ *     name: "weather_response",
+ *     description: "Weather data response",
+ *     schema: { type: "object", properties: { temp: { type: "number" } } },
+ *     strict: true
+ *   }
+ * };
+ * ```
+ */
+export interface ResponseFormat {
+  /** The response format type */
+  type: "json_schema" | "json_object" | "text";
+  /** JSON schema configuration (required when type is "json_schema") */
+  jsonSchema?: {
+    /** Name identifier for the schema */
+    name: string;
+    /** Description of the expected output */
+    description?: string;
+    /** JSON Schema object defining the structure */
+    schema?: Record<string, unknown>;
+    /** Whether to enforce strict schema validation */
+    strict?: boolean;
+  };
 }
 
 /**
@@ -727,7 +787,7 @@ export interface AgentContext {
   /** Unique identifier for this agent run */
   runId: string;
   /** Optional metadata passed from run options */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /** Optional logger callback for debugging events */
   logger?: (event: AgentLogEvent) => void;
   /**
@@ -744,10 +804,10 @@ export interface AgentContext {
  * @see AgentEvent - Preferred typed event system
  */
 export type AgentLogEvent =
-  | { type: "model_call"; data: any }
-  | { type: "tool_call"; data: any }
-  | { type: "tool_result"; data: any }
-  | { type: "final"; data: any };
+  | { type: "model_call"; data: Record<string, unknown> }
+  | { type: "tool_call"; data: Record<string, unknown> }
+  | { type: "tool_result"; data: Record<string, unknown> }
+  | { type: "final"; data: Record<string, unknown> };
 
 /**
  * Typed agent event for the onEvent callback.
@@ -773,10 +833,10 @@ export type AgentLogEvent =
  */
 export type AgentEvent =
   | { type: "model_call"; iteration: number; messages: Message[] }
-  | { type: "tool_call"; name: string; args: any }
-  | { type: "tool_result"; name: string; result: any }
+  | { type: "tool_call"; name: string; args: Record<string, unknown> }
+  | { type: "tool_result"; name: string; result: unknown }
   | { type: "tool_error"; name: string; error: string }
-  | { type: "complete"; output: any };
+  | { type: "complete"; output: unknown };
 
 /**
  * Generic schema interface for input/output validation.
@@ -884,7 +944,7 @@ export interface AgentRunOptions {
   /** Maximum tool call iterations before throwing (default: 4) */
   maxToolIterations?: number;
   /** Additional metadata available to tool handlers */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /**
    * Optional callback for typed agent events.
    * Called at key points during agent execution with type-safe event data.
@@ -982,7 +1042,7 @@ export interface Agent<I = unknown, O = unknown> {
 export type StreamChunk =
   | { type: "content"; content: string }
   | { type: "tool_call"; toolCall: ChatToolCall }
-  | { type: "tool_result"; toolResult: { name: string; result: any } }
+  | { type: "tool_result"; toolResult: { name: string; result: unknown } }
   | { type: "done" };
 
 /**

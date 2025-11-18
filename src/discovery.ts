@@ -68,7 +68,7 @@ export interface ModelParameterInfo {
   /** Description of the parameter */
   description?: string;
   /** Default value if not specified */
-  default?: any;
+  default?: unknown;
   /** Minimum value (for numeric parameters) */
   min?: number;
   /** Maximum value (for numeric parameters) */
@@ -171,6 +171,8 @@ export async function getModelParameters(
   const { author, slug } = parseModelId(model);
 
   // The SDK requires bearer token authentication for this endpoint
+  // SDK types are incomplete for parameters endpoint, requiring runtime type assertions
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- SDK parameters endpoint not fully typed
   const response = await (provider.client.parameters as any).getParameters(
     { bearer: provider.apiKey },
     { author, slug },
@@ -180,19 +182,27 @@ export async function getModelParameters(
   // Convert to our ModelParameterInfo format
   const params: ModelParameterInfo[] = [];
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- SDK response structure varies
   const data = response?.data ?? response;
   if (data && typeof data === "object") {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- data is verified as object above
     for (const [name, info] of Object.entries(data)) {
       if (typeof info === "object" && info !== null) {
-        const paramInfo = info as Record<string, any>;
+        const paramInfo = info as Record<string, unknown>;
         params.push({
           name,
-          type: paramInfo.type ?? "unknown",
-          description: paramInfo.description,
+          type: typeof paramInfo.type === "string" ? paramInfo.type : "unknown",
+          description:
+            typeof paramInfo.description === "string"
+              ? paramInfo.description
+              : undefined,
           default: paramInfo.default,
-          min: paramInfo.min,
-          max: paramInfo.max,
-          popularity: paramInfo.popularity,
+          min: typeof paramInfo.min === "number" ? paramInfo.min : undefined,
+          max: typeof paramInfo.max === "number" ? paramInfo.max : undefined,
+          popularity:
+            typeof paramInfo.popularity === "number"
+              ? paramInfo.popularity
+              : undefined,
         });
       }
     }
@@ -212,7 +222,7 @@ export async function getModelParameters(
  */
 export async function listProviders(
   provider: OpenRouterProvider,
-): Promise<Array<{ name: string; [key: string]: any }>> {
+): Promise<Array<{ name: string; [key: string]: unknown }>> {
   const response = await provider.client.providers.list();
   return response.data ?? [];
 }
@@ -237,18 +247,22 @@ export async function listModelEndpoints(
     name?: string;
     provider?: string;
     contextLength?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   }>
 > {
   const { author, slug } = parseModelId(model);
 
   // The SDK expects author and slug as separate parameters
+  // SDK types are incomplete for endpoints, requiring runtime type assertions
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- SDK endpoints not fully typed
   const response = await (provider.client.endpoints as any).list({
     author,
     slug,
   });
   if (Array.isArray(response)) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Array.isArray provides sufficient type guard
     return response;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access -- SDK response structure varies
   return response?.data ?? [];
 }

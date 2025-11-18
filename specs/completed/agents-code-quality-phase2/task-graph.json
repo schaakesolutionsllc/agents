@@ -1,0 +1,73 @@
+{
+  "spec": "agents-code-quality-phase2",
+  "tasks": [
+    {
+      "id": "001",
+      "name": "Standardize Zod imports across all files",
+      "dependencies": [],
+      "wave": 1
+    },
+    {
+      "id": "002",
+      "name": "Add constants and error message prefixes",
+      "dependencies": ["001"],
+      "wave": 2
+    },
+    {
+      "id": "003",
+      "name": "Improve ToolHandler type to be generic",
+      "dependencies": ["001"],
+      "wave": 2
+    },
+    {
+      "id": "004",
+      "name": "Extract agent.ts helper functions",
+      "dependencies": ["002"],
+      "wave": 3
+    },
+    {
+      "id": "005",
+      "name": "Extract common provider call configuration in agent.ts",
+      "dependencies": ["002"],
+      "wave": 3
+    },
+    {
+      "id": "006",
+      "name": "Extract openrouter.ts helper functions",
+      "dependencies": ["002"],
+      "wave": 3
+    },
+    {
+      "id": "008",
+      "name": "Refactor E2E test infrastructure",
+      "dependencies": ["001"],
+      "wave": 3
+    },
+    {
+      "id": "007",
+      "name": "Add tool argument validation",
+      "dependencies": ["004", "005"],
+      "wave": 4
+    },
+    {
+      "id": "009",
+      "name": "Re-enable ESLint type safety rules",
+      "dependencies": ["003", "004", "005", "006", "007"],
+      "wave": 5
+    }
+  ],
+  "waves": {
+    "1": ["001"],
+    "2": ["002", "003"],
+    "3": ["004", "005", "006", "008"],
+    "4": ["007"],
+    "5": ["009"]
+  },
+  "metadata": {
+    "totalTasks": 9,
+    "totalWaves": 5,
+    "estimatedDuration": "60-90m",
+    "approvedAt": "2025-11-18T12:00:00Z",
+    "pivotedAt": "2025-11-18T12:15:00Z"
+  }
+}

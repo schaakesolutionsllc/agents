@@ -1,6 +1,7 @@
 // src/openrouter.ts
 import { OpenRouter } from "@openrouter/sdk";
 import type { Message as SDKMessage } from "@openrouter/sdk/models/message";
+import { ERROR_PREFIXES } from "./agent.js";
 import type {
   ChatRequest,
   ChatResponse,
@@ -11,14 +12,25 @@ import type {
   MessageContentItem,
   OpenRouterChatResponse,
   OpenRouterContentItem,
+  ProviderOptions,
+  TextContentItem,
 } from "./types.js";
 
 /**
  * Converts our multimodal content format to the SDK's format.
  */
+/**
+ * SDK content type union for multimodal content items.
+ * OpenRouter SDK accepts various content item formats for multimodal input.
+ */
+type SDKContentItem =
+  | { type: "text"; text: string }
+  | { type: "image_url"; imageUrl: { url: string; detail?: string } }
+  | { type: "input_audio"; inputAudio: { data: string; format: string } };
+
 function toSDKContent(
   content: string | MessageContentItem[] | null,
-): string | any[] | undefined {
+): string | SDKContentItem[] | undefined {
   if (content === null) {
     return undefined;
   }
@@ -50,7 +62,7 @@ function toSDKContent(
         // File content requires the Responses API, not Chat API
         // Use extractDocument() or OpenRouterProvider.responses() instead
         throw new Error(
-          "File content (input_file) requires the Responses API. " +
+          `${ERROR_PREFIXES.OPENROUTER} File content (input_file) requires the Responses API. ` +
             "Use extractDocument() or provider.responses() instead of chat().",
         );
     }
@@ -71,8 +83,8 @@ function toSDKMessages(messages: Message[]): SDKMessage[] {
             ? msg.content
             : Array.isArray(msg.content)
               ? msg.content
-                  .filter((c) => c.type === "text")
-                  .map((c) => (c as any).text)
+                  .filter((c): c is TextContentItem => c.type === "text")
+                  .map((c) => c.text)
                   .join("")
               : "";
         return {
@@ -82,9 +94,12 @@ function toSDKMessages(messages: Message[]): SDKMessage[] {
       }
       case "user": {
         const content = toSDKContent(msg.content);
+        // SDK expects string or content item array for user messages
+        // Cast required due to SDK type mismatch between our content format and SDK format
         return {
           role: "user",
-          content: (content as any) ?? "",
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any -- SDK type accepts string | content[], but TypeScript can't verify compatibility
+          content: (content ?? "") as any,
         } as SDKMessage;
       }
       case "assistant": {
@@ -106,7 +121,7 @@ function toSDKMessages(messages: Message[]): SDKMessage[] {
       case "tool":
         if (!msg.toolCallId) {
           throw new Error(
-            "OpenRouterProvider: Tool message missing required toolCallId",
+            `${ERROR_PREFIXES.OPENROUTER} Tool message missing required toolCallId`,
           );
         }
         return {
@@ -119,6 +134,90 @@ function toSDKMessages(messages: Message[]): SDKMessage[] {
         };
     }
   });
+}
+
+/**
+ * Builds provider options for SDK requests from our ProviderOptions type.
+ * Maps our internal ProviderOptions to the SDK's expected format.
+ *
+ * @param providerOptions - The provider options from ChatRequest
+ * @returns SDK provider options or undefined if no options provided
+ */
+function buildSDKProviderOptions(
+  providerOptions?: ProviderOptions,
+): Record<string, unknown> | undefined {
+  if (!providerOptions) return undefined;
+
+  return {
+    sort: providerOptions.sort,
+    order: providerOptions.order,
+    only: providerOptions.only,
+    ignore: providerOptions.ignore,
+    zdr: providerOptions.zdr,
+    dataCollection: providerOptions.dataCollection,
+    allowFallbacks: providerOptions.allowFallbacks,
+    requireParameters: providerOptions.requireParameters,
+    maxPrice: providerOptions.maxPrice,
+    quantizations: providerOptions.quantizations,
+  };
+}
+
+/**
+ * Builds a complete SDK request from a ChatRequest.
+ * Handles all optional parameters, including sampling, token limits, and logging options.
+ *
+ * @param req - The ChatRequest with model, messages, and options
+ * @param tools - Formatted tools for the SDK (from our format to SDK format)
+ * @param stream - Whether this request should use streaming
+ * @returns Complete request object for the SDK's chat.send() method
+ */
+function buildSDKRequest(
+  req: ChatRequest,
+  tools:
+    | Array<{
+        type: "function";
+        function: {
+          name: string;
+          description: string | undefined;
+          parameters: Record<string, unknown> | undefined;
+        };
+      }>
+    | undefined,
+  stream: boolean,
+): Record<string, unknown> {
+  const provider = buildSDKProviderOptions(req.providerOptions);
+
+  return {
+    model: req.model,
+    ...(req.models && { models: req.models }),
+    messages: toSDKMessages(req.messages),
+    ...(tools && { tools }),
+    ...(tools && tools.length > 0 && { toolChoice: "auto" as const }),
+    // Sampling parameters
+    ...(req.temperature !== undefined && { temperature: req.temperature }),
+    ...(req.topP !== undefined && { topP: req.topP }),
+    ...(req.frequencyPenalty !== undefined && {
+      frequencyPenalty: req.frequencyPenalty,
+    }),
+    ...(req.presencePenalty !== undefined && {
+      presencePenalty: req.presencePenalty,
+    }),
+    ...(req.seed !== undefined && { seed: req.seed }),
+    ...(req.stop !== undefined && { stop: req.stop }),
+    ...(req.logitBias !== undefined && { logitBias: req.logitBias }),
+    // Token limits
+    ...(req.maxTokens !== undefined && { maxTokens: req.maxTokens }),
+    // Logging
+    ...(req.logprobs !== undefined && { logprobs: req.logprobs }),
+    ...(req.topLogprobs !== undefined && { topLogprobs: req.topLogprobs }),
+    // Output
+    stream,
+    ...(req.responseFormat && { responseFormat: req.responseFormat }),
+    // Provider routing
+    ...(provider && { provider }),
+    // Reasoning
+    ...(req.reasoning && { reasoning: req.reasoning }),
+  };
 }
 
 export interface OpenRouterProviderOptions {
@@ -140,7 +239,7 @@ export class OpenRouterProvider implements LLMProvider {
 
     if (!apiKey) {
       throw new Error(
-        "OpenRouterProvider: API key is required but not provided.\n\n" +
+        `${ERROR_PREFIXES.OPENROUTER} API key is required but not provided.\n\n` +
           "Resolution steps:\n" +
           "1. Pass apiKey option: new OpenRouterProvider({ apiKey: 'your-key' })\n" +
           "2. Set OPENROUTER_API_KEY environment variable: export OPENROUTER_API_KEY=your-key\n" +
@@ -205,63 +304,17 @@ export class OpenRouterProvider implements LLMProvider {
       },
     }));
 
-    // Build provider options for OpenRouter routing
-    const provider = req.providerOptions
-      ? {
-          sort: req.providerOptions.sort,
-          order: req.providerOptions.order,
-          only: req.providerOptions.only,
-          ignore: req.providerOptions.ignore,
-          zdr: req.providerOptions.zdr,
-          dataCollection: req.providerOptions.dataCollection,
-          allowFallbacks: req.providerOptions.allowFallbacks,
-          requireParameters: req.providerOptions.requireParameters,
-          maxPrice: req.providerOptions.maxPrice,
-          quantizations: req.providerOptions.quantizations,
-        }
-      : undefined;
-
-    const sdkRequest = {
-      model: req.model,
-      ...(req.models && { models: req.models }),
-      messages: toSDKMessages(req.messages),
-      ...(tools && { tools }),
-      ...(tools && tools.length > 0 && { toolChoice: "auto" as const }),
-      // Sampling parameters
-      ...(req.temperature !== undefined && { temperature: req.temperature }),
-      ...(req.topP !== undefined && { topP: req.topP }),
-      ...(req.frequencyPenalty !== undefined && {
-        frequencyPenalty: req.frequencyPenalty,
-      }),
-      ...(req.presencePenalty !== undefined && {
-        presencePenalty: req.presencePenalty,
-      }),
-      ...(req.seed !== undefined && { seed: req.seed }),
-      ...(req.stop !== undefined && { stop: req.stop }),
-      ...(req.logitBias !== undefined && { logitBias: req.logitBias }),
-      // Token limits
-      ...(req.maxTokens !== undefined && { maxTokens: req.maxTokens }),
-      // Logging
-      ...(req.logprobs !== undefined && { logprobs: req.logprobs }),
-      ...(req.topLogprobs !== undefined && { topLogprobs: req.topLogprobs }),
-      // Output
-      stream: false as const,
-      ...(req.responseFormat && { responseFormat: req.responseFormat }),
-      // Provider routing
-      ...(provider && { provider }),
-      // Reasoning
-      ...(req.reasoning && { reasoning: req.reasoning }),
-    };
+    const sdkRequest = buildSDKRequest(req, tools, false);
 
     // Call the SDK's chat.send method
-    // Cast to any to bypass complex type compatibility issues with the SDK
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any -- SDK types don't match our request structure exactly
     const response = await this._client.chat.send(sdkRequest as any);
 
     // Type the response for proper type safety
     const typedResponse = response as OpenRouterChatResponse;
     const choice = typedResponse.choices[0];
     if (!choice) {
-      throw new Error("OpenRouterProvider: No choices in response");
+      throw new Error(`${ERROR_PREFIXES.OPENROUTER} No choices in response`);
     }
 
     // Convert SDK response to our format
@@ -314,59 +367,38 @@ export class OpenRouterProvider implements LLMProvider {
       },
     }));
 
-    // Build provider options for OpenRouter routing
-    const provider = req.providerOptions
-      ? {
-          sort: req.providerOptions.sort,
-          order: req.providerOptions.order,
-          only: req.providerOptions.only,
-          ignore: req.providerOptions.ignore,
-          zdr: req.providerOptions.zdr,
-          dataCollection: req.providerOptions.dataCollection,
-          allowFallbacks: req.providerOptions.allowFallbacks,
-          requireParameters: req.providerOptions.requireParameters,
-          maxPrice: req.providerOptions.maxPrice,
-          quantizations: req.providerOptions.quantizations,
-        }
-      : undefined;
-
-    const sdkRequest = {
-      model: req.model,
-      ...(req.models && { models: req.models }),
-      messages: toSDKMessages(req.messages),
-      ...(tools && { tools }),
-      ...(tools && tools.length > 0 && { toolChoice: "auto" as const }),
-      // Sampling parameters
-      ...(req.temperature !== undefined && { temperature: req.temperature }),
-      ...(req.topP !== undefined && { topP: req.topP }),
-      ...(req.frequencyPenalty !== undefined && {
-        frequencyPenalty: req.frequencyPenalty,
-      }),
-      ...(req.presencePenalty !== undefined && {
-        presencePenalty: req.presencePenalty,
-      }),
-      ...(req.seed !== undefined && { seed: req.seed }),
-      ...(req.stop !== undefined && { stop: req.stop }),
-      ...(req.logitBias !== undefined && { logitBias: req.logitBias }),
-      // Token limits
-      ...(req.maxTokens !== undefined && { maxTokens: req.maxTokens }),
-      // Logging
-      ...(req.logprobs !== undefined && { logprobs: req.logprobs }),
-      ...(req.topLogprobs !== undefined && { topLogprobs: req.topLogprobs }),
-      // Output
-      stream: true as const,
-      ...(req.responseFormat && { responseFormat: req.responseFormat }),
-      // Provider routing
-      ...(provider && { provider }),
-      // Reasoning
-      ...(req.reasoning && { reasoning: req.reasoning }),
-    };
+    const sdkRequest = buildSDKRequest(req, tools, true);
 
     // Call the SDK's chat.send method with stream: true
-    // Cast to any to bypass complex type compatibility issues with the SDK
+    // SDK types don't match our request structure exactly
     const streamResponse = (await this._client.chat.send(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any -- SDK type mismatch
       sdkRequest as any,
-    )) as unknown as AsyncIterable<any>;
+    )) as unknown as AsyncIterable<StreamChunkFromSDK>;
+
+    // Type definition for SDK stream chunks
+    interface StreamChunkFromSDK {
+      choices: Array<{
+        delta: {
+          content?: string;
+          toolCalls?: Array<{
+            index: number;
+            id?: string;
+            type?: string;
+            function?: {
+              name?: string;
+              arguments?: string;
+            };
+          }>;
+        };
+        finishReason?: string;
+      }>;
+      usage?: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+      };
+    }
 
     // The SDK returns an EventStream which is an AsyncIterable
     for await (const chunk of streamResponse) {
@@ -383,10 +415,10 @@ export class OpenRouterProvider implements LLMProvider {
 
       // Handle tool calls delta
       if (delta.toolCalls && delta.toolCalls.length > 0) {
-        streamChunk.toolCalls = delta.toolCalls.map((tc: any) => ({
+        streamChunk.toolCalls = delta.toolCalls.map((tc) => ({
           index: tc.index,
           id: tc.id,
-          type: tc.type,
+          type: tc.type as "function" | undefined,
           function: tc.function
             ? {
                 name: tc.function.name,

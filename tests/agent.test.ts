@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
-import { createAgent } from "../src/agent.js";
+import { createAgent, validateToolArguments, ERROR_PREFIXES } from "../src/agent.js";
 import { defineTool, defineSyncTool } from "../src/tools.js";
 import type {
   LLMProvider,
@@ -1192,7 +1192,7 @@ describe("createAgent - runWithHistory", () => {
     const agent = createTestAgent(mockProvider);
 
     await expect(agent.runWithHistory("test", { stream: true })).rejects.toThrow(
-      "Streaming not implemented yet in createAgent.runWithHistory",
+      "createAgent: Streaming not implemented yet in runWithHistory",
     );
   });
 
@@ -1704,7 +1704,7 @@ describe("createAgent - Streaming", () => {
     const agent = createTestAgent(mockProvider);
 
     await expect(agent.run("test", { stream: true })).rejects.toThrow(
-      "Streaming not implemented yet in createAgent.run",
+      "createAgent: Streaming not implemented yet in run",
     );
   });
 
@@ -3511,5 +3511,521 @@ describe("createAgent - onEvent Callback", () => {
       expect(modelCallEvent.messages[0].role).toBe("system");
       expect(modelCallEvent.messages[1].role).toBe("user");
     }
+  });
+});
+
+// ======== Tool Argument Validation Tests ========
+
+describe("createAgent - Tool Argument Validation", () => {
+  // Direct validation function tests
+  describe("validateToolArguments", () => {
+    it("should pass validation with correct arguments", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            count: { type: "number" },
+          },
+          required: ["name"],
+        },
+      };
+
+      // Should not throw
+      expect(() => {
+        validateToolArguments("testTool", { name: "test", count: 42 }, schema);
+      }).not.toThrow();
+    });
+
+    it("should fail validation with missing required field", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            count: { type: "number" },
+          },
+          required: ["name", "count"],
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", { name: "test" }, schema);
+      }).toThrow(/count: Missing required field/);
+    });
+
+    it("should fail validation with wrong type", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            count: { type: "number" },
+          },
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", { count: "not a number" }, schema);
+      }).toThrow(/count: Invalid type.*expected number.*received string/);
+    });
+
+    it("should fail validation with invalid integer type", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            count: { type: "integer" },
+          },
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", { count: 3.14 }, schema);
+      }).toThrow(/count: Invalid type.*expected integer.*received number/);
+    });
+
+    it("should pass validation with valid integer", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            count: { type: "integer" },
+          },
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", { count: 42 }, schema);
+      }).not.toThrow();
+    });
+
+    it("should fail validation when args is null", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {},
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", null, schema);
+      }).toThrow(/Expected object, received null/);
+    });
+
+    it("should fail validation when args is not an object", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {},
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", "string", schema);
+      }).toThrow(/Expected object, received string/);
+    });
+
+    it("should handle arrays correctly", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            items: { type: "array" },
+          },
+        },
+      };
+
+      // Valid array
+      expect(() => {
+        validateToolArguments("testTool", { items: [1, 2, 3] }, schema);
+      }).not.toThrow();
+
+      // Invalid - not an array
+      expect(() => {
+        validateToolArguments("testTool", { items: "not array" }, schema);
+      }).toThrow(/items: Invalid type.*expected array.*received string/);
+    });
+
+    it("should include tool name in error message", () => {
+      const schema = {
+        name: "mySpecialTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: ["missing"],
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("mySpecialTool", {}, schema);
+      }).toThrow(/mySpecialTool/);
+    });
+
+    it("should report multiple errors", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            count: { type: "number" },
+          },
+          required: ["name", "count"],
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", { name: 123 }, schema);
+      }).toThrow(/count: Missing required field.*name: Invalid type|name: Invalid type.*count: Missing required field/);
+    });
+
+    it("should allow extra fields not in schema", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+          },
+        },
+      };
+
+      // Should not throw for extra fields
+      expect(() => {
+        validateToolArguments("testTool", { name: "test", extra: "field" }, schema);
+      }).not.toThrow();
+    });
+
+    it("should handle empty object arguments", () => {
+      const schema = {
+        name: "testTool",
+        description: "Test",
+        parameters: {
+          type: "object",
+          properties: {},
+        },
+      };
+
+      expect(() => {
+        validateToolArguments("testTool", {}, schema);
+      }).not.toThrow();
+    });
+  });
+
+  // Integration tests with agent
+  describe("Agent integration", () => {
+    it("should validate tool arguments before execution", async () => {
+      const toolSpy = vi.fn().mockResolvedValue({ result: "success" });
+
+      const strictTool = defineTool(
+        {
+          name: "strictTool",
+          description: "Tool with strict schema",
+          parameters: {
+            type: "object",
+            properties: {
+              value: { type: "number" },
+            },
+            required: ["value"],
+          },
+        },
+        toolSpy,
+      );
+
+      const mockProvider = createMockProvider([
+        // First call with invalid arguments (string instead of number)
+        toolCallResponse("strictTool", { value: "not a number" }),
+        textResponse("Handled validation error"),
+      ]);
+
+      const agent = createAgent({
+        name: "validationAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [strictTool],
+      });
+
+      const result = await agent.run("Test");
+
+      // Tool handler should NOT be called due to validation failure
+      expect(toolSpy).not.toHaveBeenCalled();
+      expect(result).toBe("Handled validation error");
+    });
+
+    it("should return validation error to model", async () => {
+      const { provider, requests } = createCapturingProvider([
+        toolCallResponse("strictTool", { value: "invalid" }),
+        textResponse("Error handled"),
+      ]);
+
+      const strictTool = defineTool(
+        {
+          name: "strictTool",
+          description: "Tool with strict schema",
+          parameters: {
+            type: "object",
+            properties: {
+              value: { type: "number" },
+            },
+            required: ["value"],
+          },
+        },
+        async () => ({ result: "success" }),
+      );
+
+      const agent = createAgent({
+        name: "validationAgent",
+        model: {
+          provider,
+          model: "test-model",
+        },
+        tools: [strictTool],
+      });
+
+      await agent.run("Test");
+
+      // Check that the second request includes the validation error
+      expect(requests.length).toBe(2);
+      const toolMessage = requests[1].messages.find((m: Message) => m.role === "tool");
+      expect(toolMessage).toBeDefined();
+      expect(toolMessage?.content).toContain("error");
+      expect(toolMessage?.content).toContain("validation");
+    });
+
+    it("should continue agent loop after validation error", async () => {
+      const events: AgentEvent[] = [];
+      const onEvent = (event: AgentEvent) => events.push(event);
+
+      const strictTool = defineTool(
+        {
+          name: "strictTool",
+          description: "Tool with strict schema",
+          parameters: {
+            type: "object",
+            properties: {
+              value: { type: "number" },
+            },
+            required: ["value"],
+          },
+        },
+        async () => ({ result: "success" }),
+      );
+
+      const mockProvider = createMockProvider([
+        toolCallResponse("strictTool", {}), // Missing required field
+        textResponse("Completed after error"),
+      ]);
+
+      const agent = createAgent({
+        name: "validationAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [strictTool],
+      });
+
+      const result = await agent.run("Test", { onEvent });
+
+      // Agent should complete successfully
+      expect(result).toBe("Completed after error");
+
+      // Should have tool_error event
+      const toolErrorEvent = events.find((e) => e.type === "tool_error");
+      expect(toolErrorEvent).toBeDefined();
+      if (toolErrorEvent?.type === "tool_error") {
+        expect(toolErrorEvent.error).toContain("validation");
+      }
+
+      // Should have complete event
+      const completeEvent = events.find((e) => e.type === "complete");
+      expect(completeEvent).toBeDefined();
+    });
+
+    it("should emit tool_error event for validation failures", async () => {
+      const events: AgentEvent[] = [];
+      const onEvent = (event: AgentEvent) => events.push(event);
+
+      const strictTool = defineTool(
+        {
+          name: "strictTool",
+          description: "Tool with strict schema",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+            },
+            required: ["name"],
+          },
+        },
+        async () => ({ result: "success" }),
+      );
+
+      const mockProvider = createMockProvider([
+        toolCallResponse("strictTool", { name: 123 }), // Wrong type
+        textResponse("Done"),
+      ]);
+
+      const agent = createAgent({
+        name: "eventAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [strictTool],
+      });
+
+      await agent.run("Test", { onEvent });
+
+      const toolErrorEvent = events.find((e) => e.type === "tool_error");
+      expect(toolErrorEvent).toBeDefined();
+      if (toolErrorEvent?.type === "tool_error") {
+        expect(toolErrorEvent.name).toBe("strictTool");
+        expect(toolErrorEvent.error).toContain("validation");
+        expect(toolErrorEvent.error).toContain("name");
+      }
+    });
+
+    it("should execute tool when validation passes", async () => {
+      const toolSpy = vi.fn().mockResolvedValue({ doubled: 84 });
+
+      const strictTool = defineTool(
+        {
+          name: "strictTool",
+          description: "Tool with strict schema",
+          parameters: {
+            type: "object",
+            properties: {
+              value: { type: "number" },
+            },
+            required: ["value"],
+          },
+        },
+        toolSpy,
+      );
+
+      const mockProvider = createMockProvider([
+        toolCallResponse("strictTool", { value: 42 }),
+        textResponse("Result is 84"),
+      ]);
+
+      const agent = createAgent({
+        name: "validAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [strictTool],
+      });
+
+      const result = await agent.run("Double 42");
+
+      // Tool should be called with valid arguments
+      expect(toolSpy).toHaveBeenCalledTimes(1);
+      expect(toolSpy).toHaveBeenCalledWith({ value: 42 }, expect.anything());
+      expect(result).toBe("Result is 84");
+    });
+
+    it("should use ERROR_PREFIXES.AGENT for validation errors", async () => {
+      const { provider, requests } = createCapturingProvider([
+        toolCallResponse("testTool", {}),
+        textResponse("Done"),
+      ]);
+
+      const testTool = defineTool(
+        {
+          name: "testTool",
+          description: "Test",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: ["missing"],
+          },
+        },
+        async () => ({ result: "success" }),
+      );
+
+      const agent = createAgent({
+        name: "prefixAgent",
+        model: {
+          provider,
+          model: "test-model",
+        },
+        tools: [testTool],
+      });
+
+      await agent.run("Test");
+
+      // Check the tool result message contains the error prefix
+      const toolMessage = requests[1].messages.find((m: Message) => m.role === "tool");
+      expect(toolMessage?.content).toContain(ERROR_PREFIXES.AGENT);
+    });
+
+    it("should validate arguments in streaming mode", async () => {
+      const toolSpy = vi.fn().mockResolvedValue({ result: "success" });
+
+      const strictTool = defineTool(
+        {
+          name: "strictTool",
+          description: "Tool with strict schema",
+          parameters: {
+            type: "object",
+            properties: {
+              value: { type: "number" },
+            },
+            required: ["value"],
+          },
+        },
+        toolSpy,
+      );
+
+      const mockProvider = createStreamingMockProvider([
+        createToolCallStreamChunks("strictTool", { value: "invalid" }),
+        createTextStreamChunks("Handled"),
+      ]);
+
+      const agent = createAgent({
+        name: "streamValidationAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [strictTool],
+      });
+
+      const stream = agent.stream("Test");
+      const chunks: StreamChunk[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      // Tool should not be called
+      expect(toolSpy).not.toHaveBeenCalled();
+
+      // Should complete successfully
+      const doneChunk = chunks.find((c) => c.type === "done");
+      expect(doneChunk).toBeDefined();
+    });
   });
 });
