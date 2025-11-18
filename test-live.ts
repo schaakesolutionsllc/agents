@@ -9,6 +9,7 @@
  * 1. Basic chat completion
  * 2. Tool calling
  * 3. Structured output with Zod
+ * 4. Streaming with tool calls
  */
 
 import {
@@ -194,6 +195,127 @@ async function testStructuredOutput() {
   }
 }
 
+async function testStreaming() {
+  console.log(DIVIDER);
+  console.log("TEST 4: Streaming with Tool Calls");
+  console.log(DIVIDER);
+
+  const provider = new OpenRouterProvider();
+
+  // Define a weather tool
+  const weatherTool = defineTool(
+    {
+      name: "get_weather",
+      description: "Gets the current weather for a city",
+      parameters: {
+        type: "object",
+        properties: {
+          city: {
+            type: "string",
+            description: "The city name",
+          },
+        },
+        required: ["city"],
+      },
+    },
+    async (args) => {
+      // Simulate weather lookup
+      const weather = {
+        city: args.city,
+        temperature: 72,
+        conditions: "sunny",
+      };
+      return weather;
+    },
+  );
+
+  const agent = createAgent<string, string>({
+    name: "test-streaming",
+    systemPrompt:
+      "You are a helpful weather assistant. Use the get_weather tool to check weather.",
+    model: {
+      provider,
+      model: "google/gemini-2.5-flash",
+      temperature: 0.3,
+    },
+    tools: [weatherTool],
+  });
+
+  const question = "What's the weather like in San Francisco? And when is the best time of year to visit (and why)?";
+  console.log(`Question: ${question}\n`);
+
+  // Track events separately from stream output
+  const events: string[] = [];
+
+  const stream = agent.stream(question, {
+    onEvent: (event) => {
+      switch (event.type) {
+        case "model_call":
+          events.push(`Model call #${event.iteration + 1}`);
+          break;
+        case "tool_call":
+          events.push(`Tool: ${event.name}(${JSON.stringify(event.args)})`);
+          break;
+        case "tool_result":
+          events.push(`Result: ${JSON.stringify(event.result)}`);
+          break;
+        case "tool_error":
+          events.push(`Error: ${event.name} - ${event.error}`);
+          break;
+        case "complete":
+          events.push(`Complete`);
+          break;
+      }
+    },
+  });
+
+  let chunkCount = 0;
+  let fullContent = "";
+
+  console.log("--- Streaming chunks ---\n");
+
+  for await (const chunk of stream) {
+    switch (chunk.type) {
+      case "content":
+        // Show each chunk with a marker to visualize streaming
+        const preview = chunk.content.length > 50
+          ? chunk.content.substring(0, 50) + "..."
+          : chunk.content;
+        console.log(`[chunk ${++chunkCount}] "${preview.replace(/\n/g, "\\n")}"`);
+        fullContent += chunk.content;
+        break;
+      case "tool_call":
+        console.log(`[tool_call] ${chunk.toolCall.function.name}(${chunk.toolCall.function.arguments})`);
+        break;
+      case "tool_result":
+        console.log(`[tool_result] ${chunk.toolResult.name} → ${JSON.stringify(chunk.toolResult.result)}`);
+        break;
+      case "done":
+        console.log(`[done]`);
+        break;
+    }
+  }
+
+  console.log("\n--- Full response ---\n");
+  console.log(fullContent);
+
+  console.log("\n--- Events log ---\n");
+  events.forEach((e, i) => console.log(`${i + 1}. ${e}`));
+
+  // Get final result with history
+  const result = await stream.finalResult();
+  console.log(`\nIterations: ${result.iterations}`);
+  console.log(`Messages in history: ${result.messages.length}`);
+
+  if (result.usage) {
+    console.log(
+      `Tokens used: ${result.usage.promptTokens} prompt + ${result.usage.completionTokens} completion = ${result.usage.totalTokens} total`,
+    );
+  }
+
+  console.log("\n✓ Streaming test passed!");
+}
+
 async function main() {
   console.log("\n🧪 Live Testing @schaake/agents with OpenRouter SDK\n");
 
@@ -211,6 +333,7 @@ async function main() {
     await testBasicChat();
     await testToolCalling();
     await testStructuredOutput();
+    await testStreaming();
 
     console.log(DIVIDER);
     console.log("🎉 All tests passed!");
