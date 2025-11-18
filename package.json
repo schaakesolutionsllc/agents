@@ -42,7 +42,7 @@
     "tools",
     "structured-output"
   ],
-  "author": "Mark Schaake",
+  "author": "Schaake Solutions, LLC",
   "license": "MIT",
   "publishConfig": {
     "access": "restricted",
