@@ -1,6 +1,7 @@
 # @schaakesolutionsllc/agents
 
 [![CI](https://github.com/schaakesolutionsllc/agents/actions/workflows/ci.yml/badge.svg)](https://github.com/schaakesolutionsllc/agents/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/schaakesolutionsllc/agents)](https://github.com/schaakesolutionsllc/agents/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](https://nodejs.org)
 
