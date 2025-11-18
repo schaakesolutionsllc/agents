@@ -12,7 +12,7 @@
 
 ## Objective
 
-Create a comprehensive integration test suite for the @schaake/agents library with Vitest that validates core agent functionality including basic runs without tools, tool execution, multi-step tool chains, and error handling. This task is critical for achieving the >80% code coverage requirement and ensuring the agent maintains stability as additional features are implemented.
+Create a comprehensive integration test suite for the @schaakesolutionsllc/agents library with Vitest that validates core agent functionality including basic runs without tools, tool execution, multi-step tool chains, and error handling. This task is critical for achieving the >80% code coverage requirement and ensuring the agent maintains stability as additional features are implemented.
 
 ## Context
 

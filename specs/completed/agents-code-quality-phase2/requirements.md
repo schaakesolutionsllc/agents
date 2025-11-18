@@ -15,7 +15,7 @@
 
 **Scope Type**: Single Project
 
-**Primary Project**: @schaake/agents
+**Primary Project**: @schaakesolutionsllc/agents
 
 ---
 

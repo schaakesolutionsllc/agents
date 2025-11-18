@@ -27,7 +27,7 @@ Implement robust error handling in the agent run loop to wrap tool handler execu
 - Log handler errors with context
 - Allow agent to continue after tool failures
 
-**User Story**: As a developer using @schaake/agents, I want tools to fail gracefully with informative errors so that my agent can recover and inform the model of failures instead of crashing.
+**User Story**: As a developer using @schaakesolutionsllc/agents, I want tools to fail gracefully with informative errors so that my agent can recover and inform the model of failures instead of crashing.
 
 ### Current Issue
 

@@ -12,7 +12,7 @@
 
 ## Objective
 
-Add comprehensive tests for all error scenarios in the @schaake/agents library to achieve >80% code coverage. Specifically, test missing API key validation, invalid JSON responses from the model, tool not found errors, tool handler exceptions, and empty API responses. All error paths must be covered with tests to ensure the library gracefully handles failures and provides developers with informative error messages.
+Add comprehensive tests for all error scenarios in the @schaakesolutionsllc/agents library to achieve >80% code coverage. Specifically, test missing API key validation, invalid JSON responses from the model, tool not found errors, tool handler exceptions, and empty API responses. All error paths must be covered with tests to ensure the library gracefully handles failures and provides developers with informative error messages.
 
 ## Context
 

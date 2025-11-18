@@ -82,7 +82,7 @@ export interface ModelParameterInfo {
  *
  * @example
  * ```typescript
- * import { listModels, OpenRouterProvider } from "@schaake/agents";
+ * import { listModels, OpenRouterProvider } from "@schaakesolutionsllc/agents";
  *
  * const provider = new OpenRouterProvider();
  * const models = await listModels(provider);
@@ -151,7 +151,7 @@ export async function getModelCount(
  *
  * @example
  * ```typescript
- * import { getModelParameters, OpenRouterProvider } from "@schaake/agents";
+ * import { getModelParameters, OpenRouterProvider } from "@schaakesolutionsllc/agents";
  *
  * const provider = new OpenRouterProvider();
  * const params = await getModelParameters(provider, "anthropic/claude-3.5-sonnet");

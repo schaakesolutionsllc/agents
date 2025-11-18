@@ -28,7 +28,7 @@ Implement runtime validation of tool arguments against their JSON schemas using 
 - Prevent invalid tool calls from executing
 - Log validation errors with full context
 
-**User Story**: As a developer using @schaake/agents, I want tool arguments to be validated at runtime so that invalid or malformed arguments are caught early with clear error messages, preventing tool execution errors and improving debugging experience.
+**User Story**: As a developer using @schaakesolutionsllc/agents, I want tool arguments to be validated at runtime so that invalid or malformed arguments are caught early with clear error messages, preventing tool execution errors and improving debugging experience.
 
 ### Current Issue
 

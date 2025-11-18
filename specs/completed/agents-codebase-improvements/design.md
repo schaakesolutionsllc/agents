@@ -11,7 +11,7 @@
 
 **Scope Type**: Single Project
 
-**Primary Project**: @schaake/agents
+**Primary Project**: @schaakesolutionsllc/agents
 
 **Status**: Draft
 
@@ -19,7 +19,7 @@
 
 ## Architecture Overview
 
-The @schaake/agents library follows a clean, modular architecture with clear separation between provider abstraction, agent orchestration, and tool execution.
+The @schaakesolutionsllc/agents library follows a clean, modular architecture with clear separation between provider abstraction, agent orchestration, and tool execution.
 
 **Current Architecture**:
 ```mermaid
@@ -30,7 +30,7 @@ graph TB
     P --> OR[OpenRouter SDK]
     OR --> API[OpenRouter API]
 
-    subgraph "@schaake/agents"
+    subgraph "@schaakesolutionsllc/agents"
         A
         P
         T
@@ -48,7 +48,7 @@ graph TB
     A --> |history| H[Message History]
     A --> |events| E[Event Emitter]
 
-    subgraph "@schaake/agents"
+    subgraph "@schaakesolutionsllc/agents"
         A
         P
         T

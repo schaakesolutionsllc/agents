@@ -1,4 +1,4 @@
-# @schaake/agents
+# @schaakesolutionsllc/agents
 
 A type-safe, provider-agnostic AI agent framework with built-in OpenRouter support. Build intelligent agents with tools, structured outputs, and flexible schema validation.
 
@@ -19,18 +19,18 @@ A type-safe, provider-agnostic AI agent framework with built-in OpenRouter suppo
 1. Create or update `.npmrc` in your project:
 
 ```bash
-@schaake:registry=https://npm.pkg.github.com
+@schaakesolutionsllc:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
 ```
 
 2. Install the package:
 
 ```bash
-pnpm add @schaake/agents
+pnpm add @schaakesolutionsllc/agents
 # or
-npm install @schaake/agents
+npm install @schaakesolutionsllc/agents
 # or
-yarn add @schaake/agents
+yarn add @schaakesolutionsllc/agents
 ```
 
 ### Local Development
@@ -58,7 +58,7 @@ import {
   OpenRouterProvider,
   createAgent,
   defineTool,
-} from "@schaake/agents";
+} from "@schaakesolutionsllc/agents";
 import { z } from "zod";
 
 // 1. Create an OpenRouter provider
@@ -202,7 +202,7 @@ The framework provides comprehensive error handling to ensure agents fail gracef
 The `OpenRouterProvider` validates the API key at construction time, failing fast with clear resolution steps:
 
 ```typescript
-import { OpenRouterProvider } from "@schaake/agents";
+import { OpenRouterProvider } from "@schaakesolutionsllc/agents";
 
 try {
   const openRouter = new OpenRouterProvider({
@@ -389,7 +389,7 @@ The framework provides a streaming API for real-time responses. Streaming allows
 Use `agent.stream()` to get real-time content as it's generated:
 
 ```typescript
-import { OpenRouterProvider, createAgent } from "@schaake/agents";
+import { OpenRouterProvider, createAgent } from "@schaakesolutionsllc/agents";
 
 const openRouter = new OpenRouterProvider({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -501,7 +501,7 @@ import {
   OpenRouterProvider,
   createAgent,
   defineTool,
-} from "@schaake/agents";
+} from "@schaakesolutionsllc/agents";
 import { z } from "zod";
 
 const openRouter = new OpenRouterProvider({

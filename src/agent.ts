@@ -640,7 +640,7 @@ function parseStructuredOutput<I, O>(
  *
  * @example
  * ```typescript
- * import { createAgent } from "@schaake/agents";
+ * import { createAgent } from "@schaakesolutionsllc/agents";
  * import { z } from "zod";
  *
  * // Simple agent with string output

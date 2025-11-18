@@ -11,20 +11,20 @@
 
 **Scope Type**: Single Project
 
-**Primary Project**: @schaake/agents
+**Primary Project**: @schaakesolutionsllc/agents
 
 ---
 
 ## Overview
 
-Improve the @schaake/agents codebase based on comprehensive code review findings. Focus areas include error handling (especially unhandled tool exceptions), type safety improvements, API enhancements (message history access, streaming support), and comprehensive test coverage. These improvements will move the library from prototype to production-grade quality.
+Improve the @schaakesolutionsllc/agents codebase based on comprehensive code review findings. Focus areas include error handling (especially unhandled tool exceptions), type safety improvements, API enhancements (message history access, streaming support), and comprehensive test coverage. These improvements will move the library from prototype to production-grade quality.
 
 ---
 
 ## User Stories
 
 ### US-1: Robust Error Handling
-**As a** developer using @schaake/agents
+**As a** developer using @schaakesolutionsllc/agents
 **I want to** have tools fail gracefully with informative errors
 **So that** my agent can recover and inform the model of failures instead of crashing
 

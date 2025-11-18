@@ -1,12 +1,12 @@
 # Examples
 
-This directory contains example implementations using `@schaake/agents`.
+This directory contains example implementations using `@schaakesolutionsllc/agents`.
 
 ## Prerequisites
 
 Before running these examples, make sure you have:
 
-1. Installed the `@schaake/agents` package
+1. Installed the `@schaakesolutionsllc/agents` package
 2. Set up your OpenRouter API key:
    ```bash
    export OPENROUTER_API_KEY=your_api_key_here
@@ -65,7 +65,7 @@ tsx examples/research-agent.ts
 Here's the basic pattern:
 
 ```typescript
-import { OpenRouterProvider, createAgent, defineTool } from "@schaake/agents";
+import { OpenRouterProvider, createAgent, defineTool } from "@schaakesolutionsllc/agents";
 import { z } from "zod";
 
 // 1. Initialize provider

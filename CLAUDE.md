@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**@schaake/agents** is a type-safe, provider-agnostic AI agent framework built on TypeScript and the OpenRouter API. It provides tool calling, structured output validation with Zod, streaming support, multimodal inputs, document extraction, web search, and embeddings generation.
+**@schaakesolutionsllc/agents** is a type-safe, provider-agnostic AI agent framework built on TypeScript and the OpenRouter API. It provides tool calling, structured output validation with Zod, streaming support, multimodal inputs, document extraction, web search, and embeddings generation.
 
 ## Build/Test/Lint Commands
 

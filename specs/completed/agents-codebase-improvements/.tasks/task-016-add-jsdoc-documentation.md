@@ -15,7 +15,7 @@
 
 ## Objective
 
-Add comprehensive JSDoc comments to all public-facing functions, interfaces, and types in the @schaake/agents codebase. This includes documenting:
+Add comprehensive JSDoc comments to all public-facing functions, interfaces, and types in the @schaakesolutionsllc/agents codebase. This includes documenting:
 
 - **Agent creation and execution**: `createAgent()`, `run()`, `runWithHistory()`, `stream()`
 - **Tool definitions**: `defineTool()`, `defineSyncTool()`, tool handler functions

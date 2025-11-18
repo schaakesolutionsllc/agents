@@ -42,7 +42,7 @@ export interface EmbeddingsResult {
  *
  * @example
  * ```typescript
- * import { createEmbeddings, OpenRouterProvider } from "@schaake/agents";
+ * import { createEmbeddings, OpenRouterProvider } from "@schaakesolutionsllc/agents";
  *
  * const provider = new OpenRouterProvider();
  *
@@ -138,7 +138,7 @@ export async function createEmbeddings(
  *
  * @example
  * ```typescript
- * import { listEmbeddingModels, OpenRouterProvider } from "@schaake/agents";
+ * import { listEmbeddingModels, OpenRouterProvider } from "@schaakesolutionsllc/agents";
  *
  * const provider = new OpenRouterProvider();
  * const models = await listEmbeddingModels(provider);
