@@ -1,0 +1,116 @@
+{
+  "spec": "agents-codebase-improvements",
+  "tasks": [
+    {
+      "id": "001",
+      "name": "Implement tool handler error catching",
+      "dependencies": [],
+      "wave": 1
+    },
+    {
+      "id": "002",
+      "name": "Add API key validation at construction time",
+      "dependencies": [],
+      "wave": 1
+    },
+    {
+      "id": "004",
+      "name": "Add OpenRouter response type definitions",
+      "dependencies": [],
+      "wave": 1
+    },
+    {
+      "id": "007",
+      "name": "Add AgentRunResult type definition",
+      "dependencies": [],
+      "wave": 1
+    },
+    {
+      "id": "011",
+      "name": "Add streaming type definitions",
+      "dependencies": [],
+      "wave": 1
+    },
+    {
+      "id": "005",
+      "name": "Replace unsafe type assertions with proper typing",
+      "dependencies": ["004"],
+      "wave": 2
+    },
+    {
+      "id": "006",
+      "name": "Implement runWithHistory method",
+      "dependencies": ["007"],
+      "wave": 2
+    },
+    {
+      "id": "003",
+      "name": "Create basic integration test suite",
+      "dependencies": ["001", "002"],
+      "wave": 2
+    },
+    {
+      "id": "008",
+      "name": "Expand test coverage for error handling paths",
+      "dependencies": ["001", "002", "005"],
+      "wave": 3
+    },
+    {
+      "id": "009",
+      "name": "Add runWithHistory tests",
+      "dependencies": ["006"],
+      "wave": 3
+    },
+    {
+      "id": "010",
+      "name": "Implement streaming support with stream method",
+      "dependencies": ["011"],
+      "wave": 3
+    },
+    {
+      "id": "012",
+      "name": "Implement onEvent callback for logging",
+      "dependencies": ["007"],
+      "wave": 3
+    },
+    {
+      "id": "013",
+      "name": "Add streaming integration tests",
+      "dependencies": ["010"],
+      "wave": 4
+    },
+    {
+      "id": "014",
+      "name": "Document error handling patterns in README",
+      "dependencies": ["001", "002", "008"],
+      "wave": 4
+    },
+    {
+      "id": "015",
+      "name": "Add streaming usage examples to documentation",
+      "dependencies": ["010", "013"],
+      "wave": 5
+    },
+    {
+      "id": "016",
+      "name": "Add JSDoc documentation to public APIs",
+      "dependencies": ["005", "006", "010", "012"],
+      "wave": 5
+    }
+  ],
+  "waves": {
+    "1": ["001", "002", "004", "007", "011"],
+    "2": ["003", "005", "006"],
+    "3": ["008", "009", "010", "012"],
+    "4": ["013", "014"],
+    "5": ["015", "016"]
+  },
+  "metadata": {
+    "totalTasks": 16,
+    "totalWaves": 5,
+    "estimatedDuration": "6-8h",
+    "criticalPath": ["011", "010", "013", "015"],
+    "parallelizationFactor": 3.2,
+    "approvedAt": "2025-11-17T00:00:00.000Z"
+  }
+}
