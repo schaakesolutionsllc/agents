@@ -9,6 +9,216 @@
  */
 export type Role = "system" | "user" | "assistant" | "tool";
 
+// ============================================================================
+// Provider Routing Types
+// ============================================================================
+
+/**
+ * Provider names supported by OpenRouter for routing configuration.
+ * Used to specify which providers to prefer, ignore, or exclusively use.
+ */
+export type ProviderName =
+  | "OpenAI"
+  | "Anthropic"
+  | "Google"
+  | "Google AI Studio"
+  | "Amazon Bedrock"
+  | "Groq"
+  | "SambaNova"
+  | "Cohere"
+  | "Mistral"
+  | "Together"
+  | "Fireworks"
+  | "DeepInfra"
+  | "Lepton"
+  | "Novita"
+  | "Avian"
+  | "Lambda"
+  | "Azure"
+  | "Modal"
+  | "AnyScale"
+  | "Replicate"
+  | "Perplexity"
+  | "Recursal"
+  | "OctoAI"
+  | "DeepSeek"
+  | "Infermatic"
+  | "AI21"
+  | "Featherless"
+  | "Inflection"
+  | "xAI"
+  | "Cloudflare"
+  | "SF Compute"
+  | "Mancer"
+  | "Mancer 2"
+  | "Lynn 2"
+  | "Lynn"
+  | "Hyperbolic"
+  | "Nineteen"
+  | (string & {}); // Allow other provider names
+
+/**
+ * Options for controlling how OpenRouter routes requests to providers.
+ * Enables optimization for cost, latency, throughput, and data privacy.
+ *
+ * @example
+ * ```typescript
+ * const providerOptions: ProviderOptions = {
+ *   sort: "price",           // Cheapest provider first
+ *   zdr: true,               // Zero data retention
+ *   maxPrice: {
+ *     prompt: 1,             // Max $1 per million tokens
+ *     completion: 3
+ *   }
+ * };
+ * ```
+ */
+export interface ProviderOptions {
+  /**
+   * Sort providers by this criteria.
+   * - `price`: Cheapest first
+   * - `throughput`: Highest throughput first
+   * - `latency`: Lowest latency first
+   */
+  sort?: "price" | "throughput" | "latency";
+
+  /**
+   * Ordered list of providers to prefer.
+   * Providers earlier in the list are tried first.
+   */
+  order?: ProviderName[];
+
+  /**
+   * Whitelist of providers to exclusively use.
+   * Only these providers will be considered.
+   */
+  only?: ProviderName[];
+
+  /**
+   * Blacklist of providers to never use.
+   * These providers will be skipped.
+   */
+  ignore?: ProviderName[];
+
+  /**
+   * Enable Zero Data Retention mode.
+   * When true, only uses providers that don't retain data.
+   */
+  zdr?: boolean;
+
+  /**
+   * Data collection preference.
+   * - `allow`: Providers may collect data
+   * - `deny`: Only use providers that don't collect data
+   */
+  dataCollection?: "allow" | "deny";
+
+  /**
+   * Allow automatic fallback to other providers.
+   * Set to false to disable fallbacks.
+   */
+  allowFallbacks?: boolean;
+
+  /**
+   * Require providers to support all parameters in the request.
+   * When true, providers that don't support a parameter are skipped.
+   */
+  requireParameters?: boolean;
+
+  /**
+   * Maximum price per unit (in dollars per million tokens/units).
+   */
+  maxPrice?: {
+    prompt?: number;
+    completion?: number;
+    image?: number;
+    request?: number;
+  };
+
+  /**
+   * Allowed quantization levels for the model.
+   */
+  quantizations?: Array<
+    "int4" | "int8" | "fp6" | "fp8" | "fp16" | "bf16" | "unknown"
+  >;
+}
+
+/**
+ * Options for reasoning models (like o1).
+ * Controls the depth and reporting of model reasoning.
+ */
+export interface ReasoningOptions {
+  /**
+   * How much reasoning effort the model should apply.
+   * Higher effort may improve quality but increases latency and cost.
+   */
+  effort?: "minimal" | "low" | "medium" | "high";
+
+  /**
+   * How to summarize the reasoning process in the response.
+   */
+  summary?: "auto" | "concise" | "detailed";
+}
+
+// ============================================================================
+// Multimodal Content Types
+// ============================================================================
+
+/**
+ * Text content item for multimodal messages.
+ */
+export interface TextContentItem {
+  type: "text";
+  text: string;
+}
+
+/**
+ * Image content item for multimodal messages.
+ * Supports URLs (including data URIs) for images.
+ *
+ * @example
+ * ```typescript
+ * const imageContent: ImageContentItem = {
+ *   type: "image_url",
+ *   imageUrl: {
+ *     url: "https://example.com/image.png",
+ *     detail: "high"
+ *   }
+ * };
+ * ```
+ */
+export interface ImageContentItem {
+  type: "image_url";
+  imageUrl: {
+    url: string;
+    /** Image detail level for processing */
+    detail?: "auto" | "low" | "high";
+  };
+}
+
+/**
+ * Audio content item for multimodal messages.
+ * Contains base64-encoded audio data.
+ */
+export interface AudioContentItem {
+  type: "input_audio";
+  inputAudio: {
+    /** Base64-encoded audio data */
+    data: string;
+    /** Audio format (must match OpenRouter SDK ChatMessageContentItemAudioFormat) */
+    format: "wav" | "mp3";
+  };
+}
+
+/**
+ * Union type for all multimodal content items.
+ * Used in Message.content when sending multimodal input.
+ */
+export type MessageContentItem =
+  | TextContentItem
+  | ImageContentItem
+  | AudioContentItem;
+
 /**
  * Represents a single message in the conversation history.
  * Messages form the context sent to the LLM provider.
@@ -30,8 +240,13 @@ export type Role = "system" | "user" | "assistant" | "tool";
 export interface Message {
   /** The role of the message sender */
   role: Role;
-  /** The text content of the message, or null for tool-calling assistant messages */
-  content: string | null;
+  /**
+   * The content of the message.
+   * - String for simple text messages
+   * - MessageContentItem[] for multimodal messages (images, audio)
+   * - null for tool-calling assistant messages with no text content
+   */
+  content: string | MessageContentItem[] | null;
   /** Optional name for assistant messages (NOT for tool messages) */
   name?: string;
   /** Tool call ID for tool response messages - required by OpenRouter SDK */
@@ -269,7 +484,11 @@ export interface AgentRunResult<O> {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    /** Estimated cost in USD (when available from provider) */
+    cost?: number;
   };
+  /** Generation ID for tracking/debugging specific API calls */
+  generationId?: string;
 }
 
 /**
@@ -281,28 +500,63 @@ export interface AgentRunResult<O> {
 export interface ChatRequest {
   /** The model identifier (e.g., "anthropic/claude-3.5-sonnet") */
   model: string;
+  /**
+   * Fallback models to try if the primary model fails.
+   * Models are tried in order until one succeeds.
+   */
+  models?: string[];
   /** The conversation messages to send */
   messages: Message[];
   /** Optional tools available for the model to call */
   tools?: ChatTool[];
   /** Whether to stream the response */
   stream?: boolean;
+
+  // Sampling parameters
   /** Sampling temperature (0-2, lower is more deterministic) */
   temperature?: number;
+  /** Nucleus sampling threshold (0-1) */
+  topP?: number;
+  /** Penalize frequent tokens (-2 to 2) */
+  frequencyPenalty?: number;
+  /** Penalize tokens based on presence (-2 to 2) */
+  presencePenalty?: number;
+  /** Random seed for deterministic generation */
+  seed?: number;
+  /** Stop sequences to end generation */
+  stop?: string | string[];
+  /** Logit bias for specific tokens */
+  logitBias?: Record<string, number>;
+
+  // Token limits
   /** Maximum tokens to generate */
   maxTokens?: number;
+
+  // Logging
+  /** Return log probabilities for tokens */
+  logprobs?: boolean;
+  /** Number of top log probabilities to return (1-20) */
+  topLogprobs?: number;
+
   /** Additional metadata for the request */
   metadata?: Record<string, any>;
+
   /** Response format for structured output */
   responseFormat?: {
-    type: "json_schema";
-    jsonSchema: {
+    type: "json_schema" | "json_object" | "text";
+    jsonSchema?: {
       name: string;
       description?: string;
       schema?: Record<string, any>;
       strict?: boolean;
     };
   };
+
+  /** Provider routing options */
+  providerOptions?: ProviderOptions;
+
+  /** Reasoning options for o1-style models */
+  reasoning?: ReasoningOptions;
 }
 
 /**
@@ -373,11 +627,24 @@ export interface LLMProvider {
  *
  * @example
  * ```typescript
+ * // Simple usage
  * const modelConfig: ModelConfig = {
  *   provider: openRouterProvider,
  *   model: "anthropic/claude-3.5-sonnet",
+ *   temperature: 0.7
+ * };
+ *
+ * // Advanced usage with provider routing
+ * const advancedConfig: ModelConfig = {
+ *   provider: openRouterProvider,
+ *   model: "anthropic/claude-3.5-sonnet",
+ *   models: ["openai/gpt-4o", "google/gemini-pro"], // Fallbacks
  *   temperature: 0.7,
- *   maxTokens: 4096
+ *   providerOptions: {
+ *     sort: "price",
+ *     zdr: true,
+ *     maxPrice: { prompt: 1, completion: 3 }
+ *   }
  * };
  * ```
  */
@@ -386,10 +653,34 @@ export interface ModelConfig {
   provider: LLMProvider;
   /** Model identifier string */
   model: string;
+  /**
+   * Fallback models to try if the primary model fails.
+   * Models are tried in order until one succeeds.
+   */
+  models?: string[];
+
+  // Sampling parameters
   /** Sampling temperature (0-2) */
   temperature?: number;
+  /** Nucleus sampling threshold (0-1) */
+  topP?: number;
+  /** Penalize frequent tokens (-2 to 2) */
+  frequencyPenalty?: number;
+  /** Penalize tokens based on presence (-2 to 2) */
+  presencePenalty?: number;
+  /** Random seed for deterministic generation */
+  seed?: number;
+  /** Stop sequences to end generation */
+  stop?: string | string[];
+
   /** Maximum tokens to generate */
   maxTokens?: number;
+
+  /** Provider routing options for OpenRouter */
+  providerOptions?: ProviderOptions;
+
+  /** Reasoning options for o1-style models */
+  reasoning?: ReasoningOptions;
 }
 
 /**

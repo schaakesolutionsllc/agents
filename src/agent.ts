@@ -401,13 +401,26 @@ export function createAgent<I = unknown, O = unknown>(
 
       const res = await config.model.provider.chat({
         model: config.model.model,
+        models: config.model.models,
         messages,
         tools: chatTools,
         stream: false,
+        // Sampling parameters
         temperature: config.model.temperature,
+        topP: config.model.topP,
+        frequencyPenalty: config.model.frequencyPenalty,
+        presencePenalty: config.model.presencePenalty,
+        seed: config.model.seed,
+        stop: config.model.stop,
+        // Token limits
         maxTokens: config.model.maxTokens,
+        // Metadata and output
         metadata,
         responseFormat,
+        // Provider routing
+        providerOptions: config.model.providerOptions,
+        // Reasoning
+        reasoning: config.model.reasoning,
       });
 
       const assistantMsg = res.message;
@@ -573,13 +586,26 @@ export function createAgent<I = unknown, O = unknown>(
 
       const res = await config.model.provider.chat({
         model: config.model.model,
+        models: config.model.models,
         messages,
         tools: chatTools,
         stream: false,
+        // Sampling parameters
         temperature: config.model.temperature,
+        topP: config.model.topP,
+        frequencyPenalty: config.model.frequencyPenalty,
+        presencePenalty: config.model.presencePenalty,
+        seed: config.model.seed,
+        stop: config.model.stop,
+        // Token limits
         maxTokens: config.model.maxTokens,
+        // Metadata and output
         metadata,
         responseFormat,
+        // Provider routing
+        providerOptions: config.model.providerOptions,
+        // Reasoning
+        reasoning: config.model.reasoning,
       });
 
       const assistantMsg = res.message;
@@ -736,13 +762,26 @@ export function createAgent<I = unknown, O = unknown>(
         // Stream from the provider
         const streamIterable = config.model.provider.chatStream({
           model: config.model.model,
+          models: config.model.models,
           messages,
           tools: chatTools,
           stream: true,
+          // Sampling parameters
           temperature: config.model.temperature,
+          topP: config.model.topP,
+          frequencyPenalty: config.model.frequencyPenalty,
+          presencePenalty: config.model.presencePenalty,
+          seed: config.model.seed,
+          stop: config.model.stop,
+          // Token limits
           maxTokens: config.model.maxTokens,
+          // Metadata and output
           metadata,
           responseFormat,
+          // Provider routing
+          providerOptions: config.model.providerOptions,
+          // Reasoning
+          reasoning: config.model.reasoning,
         });
 
         // Accumulate the streaming response
@@ -818,7 +857,11 @@ export function createAgent<I = unknown, O = unknown>(
             const toolCall = toolCalls[j];
             if (toolCall && toolMsg) {
               try {
-                const result = JSON.parse(toolMsg.content ?? "{}");
+                const contentStr =
+                  typeof toolMsg.content === "string"
+                    ? toolMsg.content
+                    : JSON.stringify(toolMsg.content);
+                const result = JSON.parse(contentStr ?? "{}");
                 yield {
                   type: "tool_result",
                   toolResult: {
@@ -828,11 +871,15 @@ export function createAgent<I = unknown, O = unknown>(
                 };
               } catch {
                 // If parsing fails, emit raw content
+                const rawContent =
+                  typeof toolMsg.content === "string"
+                    ? toolMsg.content
+                    : JSON.stringify(toolMsg.content);
                 yield {
                   type: "tool_result",
                   toolResult: {
                     name: toolCall.function.name,
-                    result: toolMsg.content,
+                    result: rawContent,
                   },
                 };
               }
