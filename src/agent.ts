@@ -8,6 +8,7 @@ import {
   Message,
   ToolDefinition,
 } from "./types.js";
+import * as z from "zod";
 
 function toChatTools(
   tools: ToolDefinition[] | undefined,
@@ -71,7 +72,6 @@ async function runToolCalls(
 
       toolMessages.push({
         role: "tool",
-        name,
         toolCallId,
         content: JSON.stringify({ error: "Tool not found" }),
       });
@@ -89,7 +89,6 @@ async function runToolCalls(
 
       toolMessages.push({
         role: "tool",
-        name,
         toolCallId,
         content: JSON.stringify({ error: "Invalid arguments JSON" }),
       });
@@ -104,7 +103,6 @@ async function runToolCalls(
 
     toolMessages.push({
       role: "tool",
-      name,
       toolCallId,
       content: JSON.stringify(result ?? {}),
     });
@@ -134,6 +132,21 @@ export function createAgent<I = unknown, O = unknown>(
     const tools = config.tools ?? [];
     const chatTools = toChatTools(tools);
 
+    // Generate responseFormat from outputSchema if provided
+    const responseFormat = config.outputSchema
+      ? {
+          type: "json_schema" as const,
+          jsonSchema: {
+            name: config.name.replace(/[^a-zA-Z0-9_-]/g, "_"),
+            description: `Structured output for ${config.name}`,
+            schema: z.toJSONSchema(config.outputSchema as z.ZodType, {
+              reused: "inline", // Inline all refs for OpenRouter compatibility
+            }),
+            strict: true,
+          },
+        }
+      : undefined;
+
     for (let i = 0; i < maxToolIterations; i += 1) {
       ctx.logger?.({
         type: "model_call",
@@ -148,17 +161,18 @@ export function createAgent<I = unknown, O = unknown>(
         temperature: config.model.temperature,
         maxTokens: config.model.maxTokens,
         metadata,
+        responseFormat,
       });
 
       const assistantMsg = res.message;
-      const toolCalls = assistantMsg.tool_calls;
+      const toolCalls = assistantMsg.toolCalls;
       const finishReason = res.finishReason;
 
       // Add assistant message to history (with tool calls if present)
       messages.push({
         role: "assistant",
-        content: assistantMsg.content ?? null,
-        tool_calls: toolCalls,
+        content: assistantMsg.content ?? "",
+        toolCalls: toolCalls,
       });
 
       ctx.logger?.({

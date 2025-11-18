@@ -164,13 +164,7 @@ async function testStructuredOutput() {
     }
   >({
     name: "test-structured-output",
-    systemPrompt: `Analyze the sentiment of the given text.
-Respond ONLY with JSON in this format:
-{
-  "sentiment": "positive" | "negative" | "neutral",
-  "confidence": 0.0-1.0,
-  "summary": "brief explanation"
-}`,
+    systemPrompt: `Analyze the sentiment of the given text.`,
     model: {
       provider,
       model: "google/gemini-2.5-flash",

@@ -41,8 +41,7 @@ export class OpenRouterProvider implements LLMProvider {
       },
     }));
 
-    // Call the SDK's chat.send method
-    const response = await this.client.chat.send({
+    const sdkRequest = {
       model: req.model,
       messages: req.messages as any, // SDK types are compatible
       tools,
@@ -50,16 +49,20 @@ export class OpenRouterProvider implements LLMProvider {
       temperature: req.temperature ?? undefined,
       maxTokens: req.maxTokens ?? undefined,
       stream: false, // Non-streaming for now
-    });
+      responseFormat: req.responseFormat,
+    };
 
-    const choice = response.choices[0];
+    // Call the SDK's chat.send method
+    const response = await this.client.chat.send(sdkRequest);
+
+    const choice = (response as any).choices[0];
     if (!choice) {
       throw new Error("OpenRouterProvider: No choices in response");
     }
 
     // Convert SDK response to our format
     const toolCalls: ChatToolCall[] | undefined = choice.message.toolCalls?.map(
-      (tc) => ({
+      (tc: any) => ({
         id: tc.id,
         type: "function" as const,
         function: {
@@ -77,7 +80,7 @@ export class OpenRouterProvider implements LLMProvider {
       } else if (Array.isArray(choice.message.content)) {
         // Extract text from content items
         content = choice.message.content
-          .map((item) => (item.type === "text" ? item.text : ""))
+          .map((item: any) => (item.type === "text" ? item.text : ""))
           .join("");
       }
     }
@@ -86,7 +89,7 @@ export class OpenRouterProvider implements LLMProvider {
       message: {
         role: "assistant",
         content,
-        tool_calls: toolCalls,
+        toolCalls: toolCalls,
       },
       finishReason: choice.finishReason ?? null,
       raw: response,

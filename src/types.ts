@@ -5,9 +5,9 @@ export type Role = "system" | "user" | "assistant" | "tool";
 export interface Message {
   role: Role;
   content: string | null;
-  name?: string; // for tool messages
+  name?: string; // for assistant messages only (NOT tool messages!)
   toolCallId?: string; // for tool response messages - required by OpenRouter SDK
-  tool_calls?: ChatToolCall[]; // for assistant messages with tool calls
+  toolCalls?: ChatToolCall[]; // for assistant messages with tool calls (camelCase!)
 }
 
 export interface ToolSchema {
@@ -47,7 +47,7 @@ export interface ChatResponse {
   message: {
     role: "assistant";
     content: string | null;
-    tool_calls?: ChatToolCall[];
+    toolCalls?: ChatToolCall[];
   };
   finishReason: string | null;
   raw?: any;
@@ -61,6 +61,15 @@ export interface ChatRequest {
   temperature?: number;
   maxTokens?: number;
   metadata?: Record<string, any>;
+  responseFormat?: {
+    type: "json_schema";
+    jsonSchema: {
+      name: string;
+      description?: string;
+      schema?: Record<string, any>;
+      strict?: boolean;
+    };
+  };
 }
 
 export interface LLMProvider {

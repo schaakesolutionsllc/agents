@@ -78,7 +78,7 @@ describe("OpenRouterProvider", () => {
         message: {
           role: "assistant",
           content: "Hello! How can I help you?",
-          tool_calls: undefined,
+          toolCalls: undefined,
         },
         finishReason: "stop",
         raw: expect.any(Object),
@@ -149,7 +149,7 @@ describe("OpenRouterProvider", () => {
       );
 
       // Verify tool calls in response
-      expect(response.message.tool_calls).toEqual([
+      expect(response.message.toolCalls).toEqual([
         {
           id: "call_123",
           type: "function",
