@@ -211,13 +211,40 @@ export interface AudioContentItem {
 }
 
 /**
+ * File content item for multimodal messages.
+ * Contains file data for documents like PDFs.
+ * Uses the OpenRouter Responses API format.
+ *
+ * @example
+ * ```typescript
+ * const pdfContent: FileContentItem = {
+ *   type: "input_file",
+ *   filename: "invoice.pdf",
+ *   fileData: `data:application/pdf;base64,${fs.readFileSync("invoice.pdf").toString("base64")}`
+ * };
+ * ```
+ */
+export interface FileContentItem {
+  type: "input_file";
+  /** Optional file ID for previously uploaded files */
+  fileId?: string;
+  /** File data as a data URI (e.g., "data:application/pdf;base64,...") */
+  fileData?: string;
+  /** Filename with extension (e.g., "document.pdf") */
+  filename?: string;
+  /** Public URL to the file */
+  fileUrl?: string;
+}
+
+/**
  * Union type for all multimodal content items.
  * Used in Message.content when sending multimodal input.
  */
 export type MessageContentItem =
   | TextContentItem
   | ImageContentItem
-  | AudioContentItem;
+  | AudioContentItem
+  | FileContentItem;
 
 /**
  * Represents a single message in the conversation history.

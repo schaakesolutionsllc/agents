@@ -16,9 +16,12 @@ import {
   OpenRouterProvider,
   createAgent,
   defineTool,
+  extractDocument,
+  searchWithWeb,
   type Schema,
 } from "./src/index.js";
 import { z } from "zod";
+import fs from "fs";
 
 const DIVIDER = "\n" + "=".repeat(80) + "\n";
 
@@ -316,6 +319,130 @@ async function testStreaming() {
   console.log("\n✓ Streaming test passed!");
 }
 
+async function testDocumentExtraction() {
+  console.log(DIVIDER);
+  console.log("TEST 5: Document Extraction with Structured Output");
+  console.log(DIVIDER);
+
+  // Check if a test PDF exists
+  const testPdfPath = "./test-document.pdf";
+  if (!fs.existsSync(testPdfPath)) {
+    console.log(
+      `⚠️  Skipping document extraction test: No test PDF found at ${testPdfPath}`,
+    );
+    console.log("\nTo run this test:");
+    console.log("1. Place a PDF file at ./test-document.pdf");
+    console.log("2. Run the tests again\n");
+    console.log("Example schema being tested:");
+    console.log(`
+  const documentSchema = z.object({
+    title: z.string(),
+    author: z.string().optional(),
+    summary: z.string(),
+    keyPoints: z.array(z.string()),
+    documentType: z.enum(["invoice", "contract", "report", "letter", "other"]),
+  });
+`);
+    console.log("✓ Document extraction test skipped (no test file)");
+    return;
+  }
+
+  const provider = new OpenRouterProvider();
+
+  // Define extraction schema
+  const documentSchema = z.object({
+    title: z.string(),
+    author: z.string().optional(),
+    summary: z.string(),
+    keyPoints: z.array(z.string()),
+    documentType: z.enum(["invoice", "contract", "report", "letter", "other"]),
+  });
+
+  // Read the test PDF
+  const pdfBase64 = fs.readFileSync(testPdfPath).toString("base64");
+  console.log(`Loaded PDF: ${testPdfPath} (${pdfBase64.length} base64 chars)\n`);
+
+  // Extract structured data using Responses API
+  const result = await extractDocument(provider, {
+    document: {
+      filename: "test-document.pdf",
+      fileData: `data:application/pdf;base64,${pdfBase64}`,
+    },
+    schema: documentSchema,
+    model: "google/gemini-2.5-flash",
+    prompt: "Extract the title, author if present, a brief summary, key points, and document type from this document.",
+  });
+
+  console.log("Extracted data:");
+  console.log(JSON.stringify(result.data, null, 2));
+  console.log();
+
+  if (result.usage) {
+    console.log(
+      `Tokens used: ${result.usage.promptTokens} prompt + ${result.usage.completionTokens} completion = ${result.usage.totalTokens} total`,
+    );
+  }
+
+  // Verify structure
+  if (
+    typeof result.data.title === "string" &&
+    typeof result.data.summary === "string" &&
+    Array.isArray(result.data.keyPoints)
+  ) {
+    console.log("\n✓ Document extraction test passed!");
+  } else {
+    throw new Error("Extracted data doesn't match expected schema!");
+  }
+}
+
+async function testWebSearch() {
+  console.log(DIVIDER);
+  console.log("TEST 6: Web Search with Structured Output");
+  console.log(DIVIDER);
+
+  const provider = new OpenRouterProvider();
+
+  // Define schema for structured web search results
+  const searchResultSchema = z.object({
+    summary: z.string(),
+    keyPoints: z.array(z.string()),
+    sources: z.array(z.string()).optional(),
+  });
+
+  const query = "What are the main features of TypeScript 5.0?";
+  console.log(`Query: "${query}"\n`);
+
+  // Search with structured output
+  const result = await searchWithWeb(provider, {
+    query,
+    model: "google/gemini-2.5-flash",
+    schema: searchResultSchema,
+    engine: "exa",
+    maxResults: 5,
+    searchContextSize: "medium",
+  });
+
+  console.log("Search results:");
+  console.log(JSON.stringify(result.data, null, 2));
+  console.log();
+
+  if (result.usage) {
+    console.log(
+      `Tokens used: ${result.usage.inputTokens} input + ${result.usage.outputTokens} output = ${result.usage.totalTokens} total`,
+    );
+  }
+
+  // Verify structure
+  if (
+    typeof result.data.summary === "string" &&
+    Array.isArray(result.data.keyPoints)
+  ) {
+    console.log("\n✓ Web search test passed!");
+  } else {
+    throw new Error("Search results don't match expected schema!");
+  }
+}
+
 async function main() {
   console.log("\n🧪 Live Testing @schaake/agents with OpenRouter SDK\n");
 
@@ -334,6 +461,8 @@ async function main() {
     await testToolCalling();
     await testStructuredOutput();
     await testStreaming();
+    await testDocumentExtraction();
+    await testWebSearch();
 
     console.log(DIVIDER);
     console.log("🎉 All tests passed!");

@@ -5,3 +5,5 @@ export * from "./openrouter.js";
 export * from "./tools.js";
 export * from "./embeddings.js";
 export * from "./discovery.js";
+export * from "./extraction.js";
+export * from "./web-search.js";

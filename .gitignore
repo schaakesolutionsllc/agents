@@ -11,6 +11,7 @@ build/
 # Testing
 coverage/
 .nyc_output/
+test-document.pdf
 
 # Environment variables
 .env

@@ -46,6 +46,13 @@ function toSDKContent(
             format: item.inputAudio.format,
           },
         };
+      case "input_file":
+        // File content requires the Responses API, not Chat API
+        // Use extractDocument() or OpenRouterProvider.responses() instead
+        throw new Error(
+          "File content (input_file) requires the Responses API. " +
+            "Use extractDocument() or provider.responses() instead of chat().",
+        );
     }
   });
 }
