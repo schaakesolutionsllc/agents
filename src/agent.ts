@@ -232,8 +232,7 @@ async function runToolCalls(
             : "Unknown error occurred";
 
       // Extract stack trace for logging (if available)
-      const errorStack =
-        error instanceof Error ? error.stack : undefined;
+      const errorStack = error instanceof Error ? error.stack : undefined;
 
       // Log the error with full context
       ctx.logger?.({
@@ -349,7 +348,12 @@ export function createAgent<I = unknown, O = unknown>(
    * @throws Error if stream option is true (not supported via run)
    */
   async function run(input: I, options: AgentRunOptions = {}): Promise<O> {
-    const { stream = false, maxToolIterations = 4, metadata, onEvent } = options;
+    const {
+      stream = false,
+      maxToolIterations = 4,
+      metadata,
+      onEvent,
+    } = options;
     if (stream) {
       // For now, only non-streaming is implemented
       // You can add a `runStream` method later that uses provider.chatStream
@@ -462,7 +466,10 @@ export function createAgent<I = unknown, O = unknown>(
                   data: {
                     content: rawContent,
                     error: "Failed to parse JSON",
-                    parseError: parseError instanceof Error ? parseError.message : String(parseError),
+                    parseError:
+                      parseError instanceof Error
+                        ? parseError.message
+                        : String(parseError),
                   },
                 });
 
@@ -510,9 +517,16 @@ export function createAgent<I = unknown, O = unknown>(
     input: I,
     options: AgentRunOptions = {},
   ): Promise<AgentRunResult<O>> {
-    const { stream = false, maxToolIterations = 4, metadata, onEvent } = options;
+    const {
+      stream = false,
+      maxToolIterations = 4,
+      metadata,
+      onEvent,
+    } = options;
     if (stream) {
-      throw new Error("Streaming not implemented yet in createAgent.runWithHistory");
+      throw new Error(
+        "Streaming not implemented yet in createAgent.runWithHistory",
+      );
     }
 
     const ctx: AgentContext = {
@@ -621,7 +635,10 @@ export function createAgent<I = unknown, O = unknown>(
                   data: {
                     content: rawContent,
                     error: "Failed to parse JSON",
-                    parseError: parseError instanceof Error ? parseError.message : String(parseError),
+                    parseError:
+                      parseError instanceof Error
+                        ? parseError.message
+                        : String(parseError),
                   },
                 });
 
@@ -786,10 +803,7 @@ export function createAgent<I = unknown, O = unknown>(
         });
 
         // Check if we have tool calls to execute
-        if (
-          toolCalls.length > 0 &&
-          finishReason === "tool_calls"
-        ) {
+        if (toolCalls.length > 0 && finishReason === "tool_calls") {
           // Emit tool_call chunks for each tool
           for (const toolCall of toolCalls) {
             yield { type: "tool_call", toolCall };

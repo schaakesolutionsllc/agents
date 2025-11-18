@@ -638,7 +638,10 @@ export interface Agent<I = unknown, O = unknown> {
    * @returns Promise resolving to output, messages, and metadata
    * @throws When max iterations exceeded or output parsing fails
    */
-  runWithHistory(input: I, options?: AgentRunOptions): Promise<AgentRunResult<O>>;
+  runWithHistory(
+    input: I,
+    options?: AgentRunOptions,
+  ): Promise<AgentRunResult<O>>;
 
   /**
    * Stream the agent's response chunk by chunk.

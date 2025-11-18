@@ -138,7 +138,9 @@ export class OpenRouterProvider implements LLMProvider {
         // Extract text from content items
         const contentItems = choice.message.content;
         content = contentItems
-          .map((item: OpenRouterContentItem) => (item.type === "text" ? item.text : ""))
+          .map((item: OpenRouterContentItem) =>
+            item.type === "text" ? item.text : "",
+          )
           .join("");
       }
     }
