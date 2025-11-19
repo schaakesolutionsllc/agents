@@ -518,6 +518,70 @@ function createContext(
 /**
  * Builds JSON schema response format from an output schema.
  *
+ * Sanitizes a JSON schema by removing properties not supported by all providers.
+ *
+ * Some providers (like Anthropic) don't support certain JSON Schema properties:
+ * - minimum, maximum, exclusiveMinimum, exclusiveMaximum on numbers
+ * - minLength, maxLength on strings
+ * - minItems, maxItems on arrays
+ * - pattern on strings
+ *
+ * These constraints are still validated by Zod after parsing the response.
+ *
+ * @param schema - The JSON schema to sanitize
+ * @returns Sanitized schema with unsupported properties removed
+ *
+ * @internal
+ */
+function sanitizeJsonSchema(schema: unknown): unknown {
+  if (typeof schema !== "object" || schema === null) {
+    return schema;
+  }
+
+  if (Array.isArray(schema)) {
+    return schema.map(sanitizeJsonSchema);
+  }
+
+  const obj = schema as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+
+  // Properties to remove (not supported by Anthropic and others)
+  const unsupportedProps = new Set([
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "minLength",
+    "maxLength",
+    "minItems",
+    "maxItems",
+    "pattern",
+  ]);
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (unsupportedProps.has(key)) {
+      continue; // Skip unsupported properties
+    }
+    result[key] = sanitizeJsonSchema(value);
+  }
+
+  return result;
+}
+
+/**
+ * Checks if the model requires schema sanitization.
+ * Currently only Anthropic models need this.
+ *
+ * @param model - The model identifier
+ * @returns True if the model needs schema sanitization
+ *
+ * @internal
+ */
+function needsSchemaSanitization(model: string): boolean {
+  return model.startsWith("anthropic/");
+}
+
+/**
  * Converts a Zod schema into OpenAI-compatible JSON schema format
  * with inline refs for provider compatibility. Used when the agent
  * is configured with an outputSchema for structured outputs.
@@ -535,14 +599,21 @@ function buildResponseFormat<I, O>(
 ): ResponseFormat | undefined {
   if (!config.outputSchema) return undefined;
 
+  const rawSchema = z.toJSONSchema(config.outputSchema as z.ZodType, {
+    reused: "inline", // Inline all refs for OpenRouter compatibility
+  });
+
+  // Only sanitize schema for providers that don't support all JSON Schema properties
+  const schema = needsSchemaSanitization(config.model.model)
+    ? (sanitizeJsonSchema(rawSchema) as Record<string, unknown>)
+    : rawSchema;
+
   return {
     type: "json_schema" as const,
     jsonSchema: {
       name: config.name.replace(/[^a-zA-Z0-9_-]/g, "_"),
       description: `Structured output for ${config.name}`,
-      schema: z.toJSONSchema(config.outputSchema as z.ZodType, {
-        reused: "inline", // Inline all refs for OpenRouter compatibility
-      }),
+      schema,
       strict: true,
     },
   };

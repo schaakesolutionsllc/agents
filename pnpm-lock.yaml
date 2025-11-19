@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@openrouter/sdk':
-        specifier: ^0.1.11
-        version: 0.1.11
+        specifier: 0.1.13
+        version: 0.1.13
       zod:
         specifier: ^4.1.12
         version: 4.1.12
@@ -304,8 +304,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@openrouter/sdk@0.1.11':
-    resolution: {integrity: sha512-OuPc8qqidL/PUM8+9WgrOfSR9+b6rKIWiezGcUJ54iPTdh+Gye5Qjut6hrLWlOCMZE7Z853gN90r1ft4iChj7Q==}
+  '@openrouter/sdk@0.1.13':
+    resolution: {integrity: sha512-OTHsblzLi0GZu9L0zSA/2bVrLcx8uj0aYs0nN85/+gtwZQdT5Vv2Wiwzz5FyWoD2RKuX5C+dSBHFEaVCmhTfQQ==}
     peerDependencies:
       '@tanstack/react-query': ^5
       react: ^18 || ^19
@@ -1299,7 +1299,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
 
-  '@openrouter/sdk@0.1.11':
+  '@openrouter/sdk@0.1.13':
     dependencies:
       zod: 4.1.12
 
