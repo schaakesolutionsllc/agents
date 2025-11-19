@@ -316,7 +316,9 @@ async function runToolCalls(
   for (const toolCall of toolCalls) {
     const toolCallId = toolCall.id;
     const name = toolCall.function.name;
-    const argsJson = toolCall.function.arguments;
+    // Default to empty object if arguments are undefined, null, or empty string
+    // This handles the case where LLM calls a tool with no arguments
+    const argsJson = toolCall.function.arguments || "{}";
 
     const def = tools.find((t) => t.schema.name === name);
     if (!def) {

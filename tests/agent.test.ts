@@ -2677,7 +2677,7 @@ describe("createAgent - Additional Error Handling", () => {
               type: "function",
               function: {
                 name: "validTool",
-                arguments: "", // Empty string
+                arguments: "", // Empty string - should be treated as empty object
               },
             },
           ],
@@ -2700,12 +2700,13 @@ describe("createAgent - Additional Error Handling", () => {
 
     expect(result).toBe("Handled empty args");
 
-    // Empty string is invalid JSON
+    // Empty string is now treated as empty object, tool should execute successfully
     const secondRequest = requests[1];
     const toolMessage = secondRequest.messages.find((m: Message) => m.role === "tool");
     const toolContent = JSON.parse(toolMessage!.content as string);
 
-    expect(toolContent.error).toContain("Invalid arguments JSON");
+    // Tool should have succeeded with empty args
+    expect(toolContent).toEqual({ ok: true });
   });
 
   it("should handle null content in tool response gracefully", async () => {
@@ -3517,6 +3518,157 @@ describe("createAgent - onEvent Callback", () => {
 // ======== Tool Argument Validation Tests ========
 
 describe("createAgent - Tool Argument Validation", () => {
+  // Tests for argument parsing (before validation)
+  describe("argument parsing", () => {
+    it("should handle tool calls with undefined arguments", async () => {
+      const toolSpy = vi.fn().mockReturnValue({ status: "ok" });
+      const noArgsTool = defineTool(
+        {
+          name: "noArgsTool",
+          description: "A tool that requires no arguments",
+          parameters: {
+            type: "object",
+            properties: {},
+          },
+        },
+        toolSpy,
+      );
+
+      // Create a raw response that bypasses the mock helper
+      // This simulates what happens when OpenRouter SDK returns undefined arguments
+      const rawResponse: ChatResponse = {
+        message: {
+          role: "assistant",
+          content: null,
+          toolCalls: [
+            {
+              id: "call_1",
+              type: "function",
+              function: {
+                name: "noArgsTool",
+                arguments: undefined as unknown as string, // Simulating undefined arguments
+              },
+            },
+          ],
+        },
+        finishReason: "tool_calls",
+      };
+
+      const mockProvider = createMockProvider([
+        rawResponse,
+        textResponse("Tool executed successfully"),
+      ]);
+
+      const agent = createAgent({
+        name: "testAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [noArgsTool],
+      });
+
+      const result = await agent.run("Run the tool");
+
+      // The tool should be called with empty object
+      expect(toolSpy).toHaveBeenCalledTimes(1);
+      expect(toolSpy).toHaveBeenCalledWith({}, expect.any(Object));
+      expect(result).toBe("Tool executed successfully");
+    });
+
+    it("should handle tool calls with empty string arguments", async () => {
+      const toolSpy = vi.fn().mockReturnValue({ status: "ok" });
+      const noArgsTool = defineTool(
+        {
+          name: "noArgsTool",
+          description: "A tool that requires no arguments",
+          parameters: {
+            type: "object",
+            properties: {},
+          },
+        },
+        toolSpy,
+      );
+
+      // Create a raw response with empty string arguments
+      const rawResponse: ChatResponse = {
+        message: {
+          role: "assistant",
+          content: null,
+          toolCalls: [
+            {
+              id: "call_1",
+              type: "function",
+              function: {
+                name: "noArgsTool",
+                arguments: "", // Empty string - invalid JSON
+              },
+            },
+          ],
+        },
+        finishReason: "tool_calls",
+      };
+
+      const mockProvider = createMockProvider([
+        rawResponse,
+        textResponse("Tool executed successfully"),
+      ]);
+
+      const agent = createAgent({
+        name: "testAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [noArgsTool],
+      });
+
+      const result = await agent.run("Run the tool");
+
+      // The tool should be called with empty object
+      expect(toolSpy).toHaveBeenCalledTimes(1);
+      expect(toolSpy).toHaveBeenCalledWith({}, expect.any(Object));
+      expect(result).toBe("Tool executed successfully");
+    });
+
+    it("should handle tool calls with valid empty object arguments", async () => {
+      const toolSpy = vi.fn().mockReturnValue({ status: "ok" });
+      const noArgsTool = defineTool(
+        {
+          name: "noArgsTool",
+          description: "A tool that requires no arguments",
+          parameters: {
+            type: "object",
+            properties: {},
+          },
+        },
+        toolSpy,
+      );
+
+      // This is the correct format - "{}" as a JSON string
+      const mockProvider = createMockProvider([
+        toolCallResponse("noArgsTool", {}),
+        textResponse("Tool executed successfully"),
+      ]);
+
+      const agent = createAgent({
+        name: "testAgent",
+        model: {
+          provider: mockProvider,
+          model: "test-model",
+        },
+        tools: [noArgsTool],
+      });
+
+      const result = await agent.run("Run the tool");
+
+      // The tool should be called with empty object
+      expect(toolSpy).toHaveBeenCalledTimes(1);
+      expect(toolSpy).toHaveBeenCalledWith({}, expect.any(Object));
+      expect(result).toBe("Tool executed successfully");
+    });
+  });
+
   // Direct validation function tests
   describe("validateToolArguments", () => {
     it("should pass validation with correct arguments", () => {
