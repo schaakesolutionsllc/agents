@@ -569,19 +569,6 @@ function sanitizeJsonSchema(schema: unknown): unknown {
 }
 
 /**
- * Checks if the model requires schema sanitization.
- * Currently only Anthropic models need this.
- *
- * @param model - The model identifier
- * @returns True if the model needs schema sanitization
- *
- * @internal
- */
-function needsSchemaSanitization(model: string): boolean {
-  return model.startsWith("anthropic/");
-}
-
-/**
  * Converts a Zod schema into OpenAI-compatible JSON schema format
  * with inline refs for provider compatibility. Used when the agent
  * is configured with an outputSchema for structured outputs.
@@ -603,10 +590,9 @@ function buildResponseFormat<I, O>(
     reused: "inline", // Inline all refs for OpenRouter compatibility
   });
 
-  // Only sanitize schema for providers that don't support all JSON Schema properties
-  const schema = needsSchemaSanitization(config.model.model)
-    ? (sanitizeJsonSchema(rawSchema) as Record<string, unknown>)
-    : rawSchema;
+  // Sanitize schema to remove properties not supported by all providers
+  // Zod still validates these constraints after parsing the response
+  const schema = sanitizeJsonSchema(rawSchema) as Record<string, unknown>;
 
   return {
     type: "json_schema" as const,
