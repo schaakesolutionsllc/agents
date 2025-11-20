@@ -1,4 +1,13 @@
 import { defineConfig } from "vitest/config";
+import dotenv from "dotenv";
+import { resolve } from "path";
+
+// Load .env files in priority order
+// .env.test.local (highest priority) > .env.test > .env.local > .env
+dotenv.config({ path: resolve(process.cwd(), ".env.test.local") });
+dotenv.config({ path: resolve(process.cwd(), ".env.test") });
+dotenv.config({ path: resolve(process.cwd(), ".env.local") });
+dotenv.config({ path: resolve(process.cwd(), ".env") });
 
 export default defineConfig({
   test: {

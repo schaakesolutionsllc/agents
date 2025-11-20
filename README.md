@@ -638,6 +638,198 @@ console.log("Key points:", output.keyPoints);
 console.log("Confidence:", output.confidence);
 ```
 
+## Embeddings
+
+The framework provides a simple API for generating vector embeddings using OpenRouter. Embeddings convert text into numerical vectors that can be used for semantic search, similarity comparisons, clustering, and other machine learning tasks.
+
+### Basic Usage
+
+Generate embeddings for single or multiple texts:
+
+```typescript
+import { OpenRouterProvider, createEmbeddings } from "@schaakesolutionsllc/agents";
+
+const openRouter = new OpenRouterProvider({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+// Generate embedding for a single text
+const result = await createEmbeddings(
+  {
+    provider: openRouter,
+    model: "openai/text-embedding-3-small",
+  },
+  "Hello world"
+);
+
+console.log(result.embeddings[0]); // [0.123, -0.456, 0.789, ...]
+console.log(`Dimensions: ${result.embeddings[0].length}`);
+console.log(`Tokens used: ${result.usage.totalTokens}`);
+```
+
+### Batch Processing
+
+Process multiple texts in a single API call for efficiency:
+
+```typescript
+const texts = [
+  "What is machine learning?",
+  "How do neural networks work?",
+  "Explain transformers in AI",
+];
+
+const result = await createEmbeddings(
+  {
+    provider: openRouter,
+    model: "openai/text-embedding-3-small",
+  },
+  texts
+);
+
+console.log(`Generated ${result.embeddings.length} embeddings`);
+// Each text gets its own embedding vector
+result.embeddings.forEach((embedding, i) => {
+  console.log(`Text ${i}: ${embedding.length} dimensions`);
+});
+```
+
+### Semantic Search Example
+
+Use embeddings to find similar documents:
+
+```typescript
+import { OpenRouterProvider, createEmbeddings } from "@schaakesolutionsllc/agents";
+
+const openRouter = new OpenRouterProvider({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+// Documents to search
+const documents = [
+  "TypeScript is a typed superset of JavaScript",
+  "Python is a popular programming language",
+  "React is a JavaScript library for building UIs",
+  "Machine learning models require training data",
+];
+
+// Generate embeddings for all documents
+const docResult = await createEmbeddings(
+  {
+    provider: openRouter,
+    model: "openai/text-embedding-3-small",
+  },
+  documents
+);
+
+// Generate embedding for search query
+const queryResult = await createEmbeddings(
+  {
+    provider: openRouter,
+    model: "openai/text-embedding-3-small",
+  },
+  "What is TypeScript?"
+);
+
+const queryEmbedding = queryResult.embeddings[0];
+
+// Calculate cosine similarity for each document
+const similarities = docResult.embeddings.map((docEmbedding, i) => {
+  const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
+  return { document: documents[i], similarity };
+});
+
+// Sort by similarity and show top results
+similarities.sort((a, b) => b.similarity - a.similarity);
+console.log("Most similar documents:");
+similarities.slice(0, 3).forEach(({ document, similarity }) => {
+  console.log(`${similarity.toFixed(3)}: ${document}`);
+});
+
+// Helper function for cosine similarity
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+```
+
+### Provider Options
+
+Use provider routing options to optimize cost, latency, or privacy:
+
+```typescript
+const result = await createEmbeddings(
+  {
+    provider: openRouter,
+    model: "openai/text-embedding-3-small",
+    providerOptions: {
+      sort: "cost", // Optimize for lowest cost
+      allowFallbacks: true, // Allow fallback to similar models
+      zdr: true, // Zero data retention for privacy
+    },
+  },
+  "Sensitive text that should not be retained"
+);
+```
+
+### Available Embedding Models
+
+List all available embedding models from OpenRouter:
+
+```typescript
+import { OpenRouterProvider, listEmbeddingModels } from "@schaakesolutionsllc/agents";
+
+const openRouter = new OpenRouterProvider({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+const models = await listEmbeddingModels(openRouter);
+
+models.forEach(model => {
+  console.log(`${model.id}`);
+  if (model.name) console.log(`  Name: ${model.name}`);
+  if (model.pricing) {
+    console.log(`  Cost: $${model.pricing.prompt} per 1K tokens`);
+  }
+});
+```
+
+### Encoding Formats
+
+OpenRouter supports both float and base64 encoding formats:
+
+```typescript
+// Float format (default) - directly usable numbers
+const floatResult = await createEmbeddings(
+  {
+    provider: openRouter,
+    model: "openai/text-embedding-3-small",
+    encodingFormat: "float", // default
+  },
+  "Hello world"
+);
+
+// Base64 format - automatically decoded to floats by the framework
+const base64Result = await createEmbeddings(
+  {
+    provider: openRouter,
+    model: "openai/text-embedding-3-small",
+    encodingFormat: "base64", // more compact over the wire
+  },
+  "Hello world"
+);
+
+// Both return the same number[] array format
+console.log(floatResult.embeddings[0]); // [0.123, -0.456, ...]
+console.log(base64Result.embeddings[0]); // [0.123, -0.456, ...]
+```
+
 ## Examples
 
 See the [`examples/`](./examples) directory for complete working examples:
@@ -645,6 +837,7 @@ See the [`examples/`](./examples) directory for complete working examples:
 - `customer-support.ts`: Agent with database lookups and structured responses
 - `research-agent.ts`: Multi-tool agent for research tasks
 - `simple-chat.ts`: Basic conversational agent
+- `embeddings.ts`: Vector embeddings for semantic search
 
 ## Development
 
