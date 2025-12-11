@@ -30,9 +30,7 @@
     "test:e2e:watch": "vitest --config vitest.config.e2e.ts",
     "clean": "rm -rf dist",
     "prepublishOnly": "pnpm run clean && pnpm run build",
-    "release:patch": "npm version patch --userconfig=/dev/null && git push --follow-tags",
-    "release:minor": "npm version minor --userconfig=/dev/null && git push --follow-tags",
-    "release:major": "npm version major --userconfig=/dev/null && git push --follow-tags"
+    "release": "./scripts/release.sh"
   },
   "keywords": [
     "ai",
@@ -50,16 +48,16 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/node": "^24.10.1",
-    "@typescript-eslint/eslint-plugin": "^8.48.1",
-    "@typescript-eslint/parser": "^8.48.1",
+    "@types/node": "^24.10.3",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
     "@vitest/coverage-v8": "^4.0.15",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.1",
-    "prettier": "^3.7.3",
+    "prettier": "^3.7.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.1",
+    "typescript-eslint": "^8.49.0",
     "vitest": "^4.0.15"
   },
   "dependencies": {
