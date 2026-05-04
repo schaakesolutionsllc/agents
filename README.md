@@ -1,4 +1,4 @@
-# @schaakesolutionsllc/agents
+# @schaake-solutions/agents
 
 [![CI](https://github.com/schaakesolutionsllc/agents/actions/workflows/ci.yml/badge.svg)](https://github.com/schaakesolutionsllc/agents/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -18,23 +18,14 @@ A type-safe, provider-agnostic AI agent framework with built-in OpenRouter suppo
 
 ## Installation
 
-### From GitHub Packages
-
-1. Create or update `.npmrc` in your project:
+Install from the public npm registry:
 
 ```bash
-@schaakesolutionsllc:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
-```
-
-2. Install the package:
-
-```bash
-pnpm add @schaakesolutionsllc/agents
+pnpm add @schaake-solutions/agents
 # or
-npm install @schaakesolutionsllc/agents
+npm install @schaake-solutions/agents
 # or
-yarn add @schaakesolutionsllc/agents
+yarn add @schaake-solutions/agents
 ```
 
 ### Local Development
@@ -62,7 +53,7 @@ import {
   OpenRouterProvider,
   createAgent,
   defineTool,
-} from "@schaakesolutionsllc/agents";
+} from "@schaake-solutions/agents";
 import { z } from "zod";
 
 // 1. Create an OpenRouter provider
@@ -206,7 +197,7 @@ The framework provides comprehensive error handling to ensure agents fail gracef
 The `OpenRouterProvider` validates the API key at construction time, failing fast with clear resolution steps:
 
 ```typescript
-import { OpenRouterProvider } from "@schaakesolutionsllc/agents";
+import { OpenRouterProvider } from "@schaake-solutions/agents";
 
 try {
   const openRouter = new OpenRouterProvider({
@@ -393,7 +384,7 @@ The framework provides a streaming API for real-time responses. Streaming allows
 Use `agent.stream()` to get real-time content as it's generated:
 
 ```typescript
-import { OpenRouterProvider, createAgent } from "@schaakesolutionsllc/agents";
+import { OpenRouterProvider, createAgent } from "@schaake-solutions/agents";
 
 const openRouter = new OpenRouterProvider({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -505,7 +496,7 @@ import {
   OpenRouterProvider,
   createAgent,
   defineTool,
-} from "@schaakesolutionsllc/agents";
+} from "@schaake-solutions/agents";
 import { z } from "zod";
 
 const openRouter = new OpenRouterProvider({
@@ -647,7 +638,7 @@ The framework provides a simple API for generating vector embeddings using OpenR
 Generate embeddings for single or multiple texts:
 
 ```typescript
-import { OpenRouterProvider, createEmbeddings } from "@schaakesolutionsllc/agents";
+import { OpenRouterProvider, createEmbeddings } from "@schaake-solutions/agents";
 
 const openRouter = new OpenRouterProvider({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -698,7 +689,7 @@ result.embeddings.forEach((embedding, i) => {
 Use embeddings to find similar documents:
 
 ```typescript
-import { OpenRouterProvider, createEmbeddings } from "@schaakesolutionsllc/agents";
+import { OpenRouterProvider, createEmbeddings } from "@schaake-solutions/agents";
 
 const openRouter = new OpenRouterProvider({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -783,7 +774,7 @@ const result = await createEmbeddings(
 List all available embedding models from OpenRouter:
 
 ```typescript
-import { OpenRouterProvider, listEmbeddingModels } from "@schaakesolutionsllc/agents";
+import { OpenRouterProvider, listEmbeddingModels } from "@schaake-solutions/agents";
 
 const openRouter = new OpenRouterProvider({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -869,33 +860,14 @@ pnpm format
 
 ## Publishing
 
-### To GitHub Packages
-
-1. Ensure you're authenticated with GitHub Packages
-2. Update version in `package.json`
-3. Build and publish:
+This package publishes to npm as `@schaake-solutions/agents` when a `v*` tag is pushed.
 
 ```bash
-pnpm build
-pnpm publish
+pnpm release patch   # or minor / major
+git push origin HEAD --follow-tags
 ```
 
-### To NPM (if migrating later)
-
-1. Update `publishConfig` in `package.json`:
-```json
-{
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org"
-  }
-}
-```
-
-2. Publish:
-```bash
-npm publish --access public
-```
+See [RELEASING.md](./RELEASING.md) for setup and release details.
 
 ## API Reference
 

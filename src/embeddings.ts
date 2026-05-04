@@ -42,7 +42,7 @@ export interface EmbeddingsResult {
  *
  * @example
  * ```typescript
- * import { createEmbeddings, OpenRouterProvider } from "@schaakesolutionsllc/agents";
+ * import { createEmbeddings, OpenRouterProvider } from "@schaake-solutions/agents";
  *
  * const provider = new OpenRouterProvider();
  *
@@ -80,7 +80,22 @@ export async function createEmbeddings(
         dataCollection: providerOptions.dataCollection,
         allowFallbacks: providerOptions.allowFallbacks,
         requireParameters: providerOptions.requireParameters,
-        maxPrice: providerOptions.maxPrice,
+        maxPrice: providerOptions.maxPrice
+          ? {
+              ...(providerOptions.maxPrice.prompt !== undefined && {
+                prompt: providerOptions.maxPrice.prompt.toString(),
+              }),
+              ...(providerOptions.maxPrice.completion !== undefined && {
+                completion: providerOptions.maxPrice.completion.toString(),
+              }),
+              ...(providerOptions.maxPrice.image !== undefined && {
+                image: providerOptions.maxPrice.image.toString(),
+              }),
+              ...(providerOptions.maxPrice.request !== undefined && {
+                request: providerOptions.maxPrice.request.toString(),
+              }),
+            }
+          : undefined,
         quantizations: providerOptions.quantizations,
       }
     : undefined;
@@ -99,11 +114,13 @@ export async function createEmbeddings(
   }
 
   const response = (await provider.client.embeddings.generate({
-    input,
-    model,
-    provider: sdkProvider,
-    encodingFormat,
-    user,
+    requestBody: {
+      input,
+      model,
+      provider: sdkProvider,
+      encodingFormat,
+      user,
+    },
   })) as EmbeddingsResponse;
 
   // Extract embeddings from response
@@ -138,7 +155,7 @@ export async function createEmbeddings(
  *
  * @example
  * ```typescript
- * import { listEmbeddingModels, OpenRouterProvider } from "@schaakesolutionsllc/agents";
+ * import { listEmbeddingModels, OpenRouterProvider } from "@schaake-solutions/agents";
  *
  * const provider = new OpenRouterProvider();
  * const models = await listEmbeddingModels(provider);

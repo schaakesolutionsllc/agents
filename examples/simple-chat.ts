@@ -7,7 +7,7 @@
  * - Basic configuration
  */
 
-import { OpenRouterProvider, createAgent } from "@schaakesolutionsllc/agents";
+import { OpenRouterProvider, createAgent } from "@schaake-solutions/agents";
 
 // Initialize OpenRouter provider
 const openRouter = new OpenRouterProvider({

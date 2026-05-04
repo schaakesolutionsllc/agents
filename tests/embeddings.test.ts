@@ -60,11 +60,13 @@ describe("createEmbeddings", () => {
 
     expect(generateMock).toHaveBeenCalledTimes(1);
     expect(generateMock).toHaveBeenCalledWith({
-      input: "Hello world",
-      model: "openai/text-embedding-3-small",
-      provider: undefined,
-      encodingFormat: undefined,
-      user: undefined,
+      requestBody: {
+        input: "Hello world",
+        model: "openai/text-embedding-3-small",
+        provider: undefined,
+        encodingFormat: undefined,
+        user: undefined,
+      },
     });
   });
 
@@ -100,11 +102,13 @@ describe("createEmbeddings", () => {
     expect(result.embeddings[2]).toEqual([0.7, 0.8, 0.9]);
 
     expect(generateMock).toHaveBeenCalledWith({
-      input: texts,
-      model: "openai/text-embedding-3-small",
-      provider: undefined,
-      encodingFormat: undefined,
-      user: undefined,
+      requestBody: {
+        input: texts,
+        model: "openai/text-embedding-3-small",
+        provider: undefined,
+        encodingFormat: undefined,
+        user: undefined,
+      },
     });
   });
 
@@ -144,11 +148,13 @@ describe("createEmbeddings", () => {
     expect(result.embeddings[0][2]).toBeCloseTo(3.0);
 
     expect(generateMock).toHaveBeenCalledWith({
-      input: "Test base64",
-      model: "openai/text-embedding-3-small",
-      provider: undefined,
-      encodingFormat: "base64",
-      user: undefined,
+      requestBody: {
+        input: "Test base64",
+        model: "openai/text-embedding-3-small",
+        provider: undefined,
+        encodingFormat: "base64",
+        user: undefined,
+      },
     });
   });
 
@@ -169,7 +175,7 @@ describe("createEmbeddings", () => {
         provider,
         model: "openai/text-embedding-3-small",
         providerOptions: {
-          sort: "cost",
+          sort: "price",
           order: ["openai", "google"],
           only: ["openai"],
           ignore: ["anthropic"],
@@ -177,30 +183,32 @@ describe("createEmbeddings", () => {
           dataCollection: "deny",
           allowFallbacks: true,
           requireParameters: false,
-          maxPrice: 0.001,
-          quantizations: "int8",
+          maxPrice: { prompt: 0.001 },
+          quantizations: ["int8"],
         },
       },
       "Test provider options",
     );
 
     expect(generateMock).toHaveBeenCalledWith({
-      input: "Test provider options",
-      model: "openai/text-embedding-3-small",
-      provider: {
-        sort: "cost",
-        order: ["openai", "google"],
-        only: ["openai"],
-        ignore: ["anthropic"],
-        zdr: true,
-        dataCollection: "deny",
-        allowFallbacks: true,
-        requireParameters: false,
-        maxPrice: 0.001,
-        quantizations: "int8",
+      requestBody: {
+        input: "Test provider options",
+        model: "openai/text-embedding-3-small",
+        provider: {
+          sort: "price",
+          order: ["openai", "google"],
+          only: ["openai"],
+          ignore: ["anthropic"],
+          zdr: true,
+          dataCollection: "deny",
+          allowFallbacks: true,
+          requireParameters: false,
+          maxPrice: { prompt: "0.001" },
+          quantizations: ["int8"],
+        },
+        encodingFormat: undefined,
+        user: undefined,
       },
-      encodingFormat: undefined,
-      user: undefined,
     });
   });
 
@@ -226,11 +234,13 @@ describe("createEmbeddings", () => {
     );
 
     expect(generateMock).toHaveBeenCalledWith({
-      input: "Test user tracking",
-      model: "openai/text-embedding-3-small",
-      provider: undefined,
-      encodingFormat: undefined,
-      user: "user-123",
+      requestBody: {
+        input: "Test user tracking",
+        model: "openai/text-embedding-3-small",
+        provider: undefined,
+        encodingFormat: undefined,
+        user: "user-123",
+      },
     });
   });
 

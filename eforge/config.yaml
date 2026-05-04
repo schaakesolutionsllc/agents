@@ -1,0 +1,6 @@
+build:
+  postMergeCommands:
+    - pnpm install
+    - pnpm type-check
+    - pnpm test
+    - pnpm build

@@ -1,6 +1,9 @@
 // src/openrouter.ts
 import { OpenRouter } from "@openrouter/sdk";
-import type { Message as SDKMessage } from "@openrouter/sdk/models/message";
+import type {
+  ChatContentItems,
+  ChatMessages as SDKMessage,
+} from "@openrouter/sdk/models";
 import { ERROR_PREFIXES } from "./agent.js";
 import type {
   ChatRequest,
@@ -19,18 +22,9 @@ import type {
 /**
  * Converts our multimodal content format to the SDK's format.
  */
-/**
- * SDK content type union for multimodal content items.
- * OpenRouter SDK accepts various content item formats for multimodal input.
- */
-type SDKContentItem =
-  | { type: "text"; text: string }
-  | { type: "image_url"; imageUrl: { url: string; detail?: string } }
-  | { type: "input_audio"; inputAudio: { data: string; format: string } };
-
 function toSDKContent(
   content: string | MessageContentItem[] | null,
-): string | SDKContentItem[] | undefined {
+): string | ChatContentItems[] | undefined {
   if (content === null) {
     return undefined;
   }
@@ -94,13 +88,10 @@ function toSDKMessages(messages: Message[]): SDKMessage[] {
       }
       case "user": {
         const content = toSDKContent(msg.content);
-        // SDK expects string or content item array for user messages
-        // Cast required due to SDK type mismatch between our content format and SDK format
         return {
           role: "user",
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any -- SDK type accepts string | content[], but TypeScript can't verify compatibility
-          content: (content ?? "") as any,
-        } as SDKMessage;
+          content: content ?? "",
+        };
       }
       case "assistant": {
         const content =

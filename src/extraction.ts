@@ -264,7 +264,9 @@ export async function extractDocument<T>(
   };
 
   // Call the Responses API
-  const response = await provider.client.beta.responses.send(request);
+  const response = await provider.client.beta.responses.send({
+    responsesRequest: request,
+  });
 
   // Extract the text output from the response
   // First try outputText (convenience field), then extract from output array

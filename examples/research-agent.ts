@@ -12,7 +12,7 @@ import {
   createAgent,
   defineTool,
   type Schema,
-} from "@schaakesolutionsllc/agents";
+} from "@schaake-solutions/agents";
 import { z } from "zod";
 
 // Initialize OpenRouter provider

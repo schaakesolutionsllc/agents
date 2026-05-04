@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**@schaakesolutionsllc/agents** is a type-safe, provider-agnostic AI agent framework built on TypeScript and the OpenRouter API. It provides tool calling, structured output validation with Zod, streaming support, multimodal inputs, document extraction, web search, and embeddings generation.
+**@schaake-solutions/agents** is a type-safe, provider-agnostic AI agent framework built on TypeScript and the OpenRouter API. It provides tool calling, structured output validation with Zod, streaming support, multimodal inputs, document extraction, web search, and embeddings generation.
 
 ## Build/Test/Lint Commands
 
@@ -104,5 +104,5 @@ Package type: ESM module
 
 ## Publishing
 
-Registry: GitHub Packages (npm.pkg.github.com)
-Setup: Copy .npmrc.example to .npmrc, add GitHub token with read:packages/write:packages scopes
+Registry: npm (`@schaake-solutions/agents`)
+Setup: GitHub Actions publishes on `v*` tags using the `NPM_ACCESS_TOKEN` repository secret.

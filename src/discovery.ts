@@ -77,12 +77,157 @@ export interface ModelParameterInfo {
   popularity?: number;
 }
 
+type ParameterMetadata = Pick<
+  ModelParameterInfo,
+  "type" | "description" | "min" | "max"
+>;
+
+type DefaultParameterValues = {
+  frequencyPenalty?: number | null;
+  presencePenalty?: number | null;
+  repetitionPenalty?: number | null;
+  temperature?: number | null;
+  topK?: number | null;
+  topP?: number | null;
+};
+
+const PARAMETER_METADATA: Record<string, ParameterMetadata> = {
+  temperature: {
+    type: "number",
+    description: "Sampling temperature. Higher values make output more random.",
+    min: 0,
+    max: 2,
+  },
+  top_p: {
+    type: "number",
+    description: "Nucleus sampling threshold.",
+    min: 0,
+    max: 1,
+  },
+  top_k: {
+    type: "number",
+    description: "Limits sampling to the top K tokens.",
+    min: 0,
+  },
+  frequency_penalty: {
+    type: "number",
+    description: "Penalizes tokens based on frequency in generated text.",
+    min: -2,
+    max: 2,
+  },
+  presence_penalty: {
+    type: "number",
+    description: "Penalizes tokens that have already appeared in generated text.",
+    min: -2,
+    max: 2,
+  },
+  repetition_penalty: {
+    type: "number",
+    description: "Penalizes repeated tokens.",
+  },
+  max_tokens: {
+    type: "integer",
+    description: "Maximum number of tokens to generate.",
+    min: 1,
+  },
+  max_completion_tokens: {
+    type: "integer",
+    description: "Maximum number of completion tokens to generate.",
+    min: 1,
+  },
+  logit_bias: {
+    type: "object",
+    description: "Biases likelihood of specified tokens.",
+  },
+  logprobs: {
+    type: "boolean",
+    description: "Whether to return log probabilities.",
+  },
+  top_logprobs: {
+    type: "integer",
+    description: "Number of top token log probabilities to return.",
+    min: 0,
+  },
+  seed: {
+    type: "integer",
+    description: "Seed for deterministic sampling where supported.",
+  },
+  response_format: {
+    type: "object",
+    description: "Response format configuration.",
+  },
+  structured_outputs: {
+    type: "boolean",
+    description: "Whether structured outputs are supported.",
+  },
+  stop: {
+    type: "string | string[]",
+    description: "Stop sequence or sequences.",
+  },
+  tools: {
+    type: "array",
+    description: "Tool definitions available to the model.",
+  },
+  tool_choice: {
+    type: "string | object",
+    description: "Controls whether and which tool is called.",
+  },
+  parallel_tool_calls: {
+    type: "boolean",
+    description: "Whether the model can call tools in parallel.",
+  },
+  include_reasoning: {
+    type: "boolean",
+    description: "Whether to include reasoning output.",
+  },
+  reasoning: {
+    type: "object",
+    description: "Reasoning configuration.",
+  },
+  reasoning_effort: {
+    type: "string",
+    description: "Reasoning effort level.",
+  },
+  web_search_options: {
+    type: "object",
+    description: "Web search configuration.",
+  },
+  verbosity: {
+    type: "string",
+    description: "Verbosity level for supported models.",
+  },
+};
+
+function getDefaultParameterValue(
+  defaultParameters: DefaultParameterValues | null | undefined,
+  name: string,
+): unknown {
+  if (!defaultParameters) return undefined;
+
+  switch (name) {
+    case "frequency_penalty":
+      return defaultParameters.frequencyPenalty ?? undefined;
+    case "presence_penalty":
+      return defaultParameters.presencePenalty ?? undefined;
+    case "repetition_penalty":
+      return defaultParameters.repetitionPenalty ?? undefined;
+    case "temperature":
+      return defaultParameters.temperature ?? undefined;
+    case "top_k":
+      return defaultParameters.topK ?? undefined;
+    case "top_p":
+      return defaultParameters.topP ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * List all available models from OpenRouter.
  *
  * @example
  * ```typescript
- * import { listModels, OpenRouterProvider } from "@schaakesolutionsllc/agents";
+ * import { listModels, OpenRouterProvider } from "@schaake-solutions/agents";
  *
  * const provider = new OpenRouterProvider();
  * const models = await listModels(provider);
@@ -151,7 +296,7 @@ export async function getModelCount(
  *
  * @example
  * ```typescript
- * import { getModelParameters, OpenRouterProvider } from "@schaakesolutionsllc/agents";
+ * import { getModelParameters, OpenRouterProvider } from "@schaake-solutions/agents";
  *
  * const provider = new OpenRouterProvider();
  * const params = await getModelParameters(provider, "anthropic/claude-3.5-sonnet");
@@ -168,47 +313,29 @@ export async function getModelParameters(
   provider: OpenRouterProvider,
   model: string,
 ): Promise<ModelParameterInfo[]> {
-  const { author, slug } = parseModelId(model);
-
-  // The SDK requires bearer token authentication for this endpoint
-  // SDK types are incomplete for parameters endpoint, requiring runtime type assertions
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any -- SDK parameters endpoint not fully typed
-  const response = await (provider.client.parameters as any).getParameters(
-    { bearer: provider.apiKey },
-    { author, slug },
+  const response = await provider.client.models.list();
+  const modelInfo = response.data.find(
+    (availableModel) =>
+      availableModel.id === model || availableModel.canonicalSlug === model,
   );
 
-  // The SDK returns parameters in a specific format
-  // Convert to our ModelParameterInfo format
-  const params: ModelParameterInfo[] = [];
-
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- SDK response structure varies
-  const data = response?.data ?? response;
-  if (data && typeof data === "object") {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- data is verified as object above
-    for (const [name, info] of Object.entries(data)) {
-      if (typeof info === "object" && info !== null) {
-        const paramInfo = info as Record<string, unknown>;
-        params.push({
-          name,
-          type: typeof paramInfo.type === "string" ? paramInfo.type : "unknown",
-          description:
-            typeof paramInfo.description === "string"
-              ? paramInfo.description
-              : undefined,
-          default: paramInfo.default,
-          min: typeof paramInfo.min === "number" ? paramInfo.min : undefined,
-          max: typeof paramInfo.max === "number" ? paramInfo.max : undefined,
-          popularity:
-            typeof paramInfo.popularity === "number"
-              ? paramInfo.popularity
-              : undefined,
-        });
-      }
-    }
+  if (!modelInfo) {
+    return [];
   }
 
-  return params;
+  return modelInfo.supportedParameters.map((parameter): ModelParameterInfo => {
+    const name = String(parameter);
+    const metadata = PARAMETER_METADATA[name];
+
+    return {
+      name,
+      type: metadata?.type ?? "unknown",
+      description: metadata?.description,
+      default: getDefaultParameterValue(modelInfo.defaultParameters, name),
+      min: metadata?.min,
+      max: metadata?.max,
+    };
+  });
 }
 
 /**

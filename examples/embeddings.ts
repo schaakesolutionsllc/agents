@@ -12,7 +12,7 @@ import {
   OpenRouterProvider,
   createEmbeddings,
   listEmbeddingModels,
-} from "@schaakesolutionsllc/agents";
+} from "@schaake-solutions/agents";
 
 // Initialize OpenRouter provider
 const openRouter = new OpenRouterProvider({

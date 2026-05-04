@@ -212,9 +212,9 @@ export async function searchWithWeb<T = string>(
     input: userInput,
     instructions: systemInstructions,
     ...(textConfig && { text: textConfig }),
-    plugins: [
+    tools: [
       {
-        id: "web" as const,
+        type: "web_search_2025_08_26" as const,
         engine,
         ...(maxResults !== undefined && { maxResults }),
         searchContextSize,
@@ -226,7 +226,9 @@ export async function searchWithWeb<T = string>(
   };
 
   // Call the Responses API
-  const response = await provider.client.beta.responses.send(request);
+  const response = await provider.client.beta.responses.send({
+    responsesRequest: request,
+  });
 
   // Extract the text output from the response
   let rawContent = response.outputText;
