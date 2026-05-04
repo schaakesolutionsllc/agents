@@ -117,7 +117,8 @@ const PARAMETER_METADATA: Record<string, ParameterMetadata> = {
   },
   presence_penalty: {
     type: "number",
-    description: "Penalizes tokens that have already appeared in generated text.",
+    description:
+      "Penalizes tokens that have already appeared in generated text.",
     min: -2,
     max: 2,
   },
